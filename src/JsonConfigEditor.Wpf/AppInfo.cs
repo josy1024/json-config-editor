@@ -15,6 +15,24 @@ public static class AppInfo
 
     public static string VersionText => $"json-config-editor {Version}";
 
+    private static readonly Lazy<System.Windows.Media.ImageSource?> LazyIcon = new(() =>
+    {
+        try
+        {
+            var frame = System.Windows.Media.Imaging.BitmapFrame.Create(
+                new Uri("pack://application:,,,/JsonConfigEditor.Wpf;component/Assets/app.ico"));
+            frame.Freeze();
+            return frame;
+        }
+        catch (Exception ex) when (ex is IOException or NotSupportedException or UriFormatException or InvalidOperationException)
+        {
+            return null; // ohne Icon geht's auch
+        }
+    });
+
+    /// <summary>Fenster-Icon (Titelleiste, Alt+Tab). null, wenn's nicht ladbar ist.</summary>
+    public static System.Windows.Media.ImageSource? Icon => LazyIcon.Value;
+
     /// <summary>Im Standardbrowser öffnen. false = ging nicht.</summary>
     public static bool OpenUrl(string url)
     {

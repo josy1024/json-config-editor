@@ -7,6 +7,8 @@
     <RootNamespace>JsonConfigEditor.App</RootNamespace>
     <StartupObject>JsonConfigEditor.App.Program</StartupObject>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Icon der exe (Explorer, Taskleiste, Startmenü), gleiche Datei wie das Fenster-Icon -->
+    <ApplicationIcon>..\JsonConfigEditor.Wpf\Assets\app.ico</ApplicationIcon>
     <NoWarn>$(NoWarn);WPF0001</NoWarn>
     <!-- LibraryImport (AttachConsole) erzeugt unsafe-Code -->
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

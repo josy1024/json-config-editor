@@ -12,4 +12,8 @@
   <ItemGroup>
     <ProjectReference Include="..\JsonConfigEditor.Core\JsonConfigEditor.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Fenster-Icon (Titelleiste, Alt+Tab). Neu bauen: tools/Make-Icon.ps1 aus docs/icon.jpg -->
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
 </Project>

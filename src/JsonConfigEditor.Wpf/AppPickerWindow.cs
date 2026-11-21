@@ -9,6 +9,7 @@ public sealed class AppPickerWindow : Window
     public AppPickerWindow(CatalogLocations? locations = null)
     {
         ThemeMode = ThemeMode.System;
+        if (AppInfo.Icon is { } icon) Icon = icon;
         View = new AppPickerView(locations);
         Content = View;
         Title = "json-config-editor";

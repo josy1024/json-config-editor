@@ -10,6 +10,7 @@ public sealed class ConfigEditorWindow : Window
     public ConfigEditorWindow(ConfigEditorOptions options)
     {
         ThemeMode = ThemeMode.System;
+        if (AppInfo.Icon is { } icon) Icon = icon; // Host kann's danach überschreiben
         View = new ConfigEditorView(options);
         Content = View;
         Title = View.ViewModel.Title;
