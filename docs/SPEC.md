@@ -377,8 +377,8 @@ Manuell:
 * ✅ Favoriten: Stern konturiert = kein Favorit, gefüllt goldfarben = Favorit. Nur das Symbol bekommt den Farbakzent; keine gelbe Kartenfläche.
 * ✅ Erweiterte Einstellungen: Badge "Erweitert" und dezente neutrale Akzentlinie; Karten bleiben gleich hell und kontrastreich.
 
-* Suche der Einstellungen sollte auch die Anzahl Oben richtige Anzahl
-
 * Favoriten bei Abschnitte Weg und dafür Links als Knopf neben "ALLE" / "Geändert"
+
+* bei der Suche in den Einstellungen sollte auch die Anzahl Oben richtige Anzahl aktualisiern
 
 * Erweitert Anzeigen soll auch Abschnitte filtern, wenn alle Elemente im erweitert "unsichtbar sind"
