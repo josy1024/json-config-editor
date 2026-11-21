@@ -1,0 +1,43 @@
+{
+  "General": {
+    "Enabled": true,
+    "DisplayName": "TestApp",
+    "RetryCount": 3,
+    "ScaleFactor": 1.25,
+    "Mode": "automatic",
+    "ReadOnlyText": "Provided by the base configuration",
+    "AdvancedFactor": 0.75,
+    "HiddenValue": "Hidden by the manifest"
+  },
+  "Paths": {
+    "OutputFolder": "",
+    "TemplateFile": "TestApp.json",
+    "OptionalFolder": "%TEMP%\\JsonConfigEditorTest",
+    "RelativeFolder": "Data"
+  },
+  "Runtime": {
+    "TimeoutSeconds": 0,
+    "RestartBehavior": "on-change",
+    "MaxItems": 25
+  },
+  "Collections": {
+    "Tags": [
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "Endpoints": [
+      {
+        "Name": "Primary",
+        "Url": "https://primary.example.invalid"
+      },
+      {
+        "Name": "Fallback",
+        "Url": "https://fallback.example.invalid"
+      }
+    ]
+  },
+  "Internal": {
+    "DiagnosticsEnabled": true
+  }
+}

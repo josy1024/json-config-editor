@@ -194,6 +194,8 @@ Reserviert für später (v1 ignoriert sie mit Warnung im Log): `options`, `optio
 * Oben: Suche über Label, Beschreibung und Key. Filter-Chips pro Abschnitt mit Anzahl. Umschalter "Alle | Geändert · N" (Geändert = alles mit Herkunft "eigener Wert").
 * Karten zweispaltig, ab schmalem Fenster einspaltig.
 * Karte: Label (fett), Beschreibung, Bedienelement rechts, Herkunfts-Badge, ↺ (nur bei eigenem Wert), 🔒 bei readonly/gesperrt mit Tooltip "gesperrt durch IT", ⟳ bei `restartRequired`.
+* Favoriten: Konturierter Stern = kein Favorit, gefüllter goldener Stern = Favorit. Nur das Symbol bekommt den Farbakzent; keine gelbe Kartenfläche.
+* Erweiterte Einstellungen: Wenn sichtbar, tragen sie das Text-Badge "Erweitert" und eine dezente neutrale Akzentlinie. Die Karte bleibt gleich hell und kontrastreich; Farbe ist nicht das einzige Erkennungsmerkmal.
 
 Bedienelemente:
 
@@ -364,6 +366,7 @@ Manuell:
 * Registry/ADMX-Policies (`HKLM\Software\Policies\<App>`).
 * NuGet-Paket für die DLL, winget-Paket für die EXE.
 * Mehrsprachigkeit (UI-Texte, Descriptor-Labels pro Sprache).
+* Developermodus: später die `advanced`-Einordnung pro Feld anpassen können. Diese Editor-Metadaten bleiben getrennt von den eigentlichen Einstellungswerten; IT-Admin-Modus und Developermodus bleiben getrennte Funktionen.
 
 ## 14. BUGnFeatures
 
@@ -371,6 +374,11 @@ Manuell:
 * ✅ Favoriten werden in der lokalen Config der App gespeichert
 * ✅ Wenn ich in ein Einstellungen Scrolle, werden Die Abschnitte auch vom aktuellen Abschnitt markiert
 * ✅ Abschnitte Links lösen kurze "Bewegung" aus (damit der zusammenhang besser / klarer wird)
-* Wenn Erweitert anzeigen, kann im Admin modus ausgewählt werden, was erweitert ist? => einfaches Rückschreiben
-* Erweitert sind dann mit "PI" Markiert, Text Kursiv? - Andere ideen?
-* Erweitert Farblich besser kennzeichnen
+* ✅ Favoriten: Stern konturiert = kein Favorit, gefüllt goldfarben = Favorit. Nur das Symbol bekommt den Farbakzent; keine gelbe Kartenfläche.
+* ✅ Erweiterte Einstellungen: Badge "Erweitert" und dezente neutrale Akzentlinie; Karten bleiben gleich hell und kontrastreich.
+
+* Suche der Einstellungen sollte auch die Anzahl Oben richtige Anzahl
+
+* Favoriten bei Abschnitte Weg und dafür Links als Knopf neben "ALLE" / "Geändert"
+
+* Erweitert Anzeigen soll auch Abschnitte filtern, wenn alle Elemente im erweitert "unsichtbar sind"

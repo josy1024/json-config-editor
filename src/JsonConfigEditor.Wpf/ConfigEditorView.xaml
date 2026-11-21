@@ -12,6 +12,15 @@
                 <ResourceDictionary Source="/JsonConfigEditor.Wpf;component/Themes/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <Style x:Key="FavoriteStarIcon" TargetType="TextBlock" BasedOn="{StaticResource IconText}">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                        <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCautionBrush}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+
             <!-- Rechtsklick auf ein Pfadfeld. x:Shared=False: jede Karte bekommt ihr eigenes Menü (DataContext) -->
             <ContextMenu x:Key="PathMenu" x:Shared="False">
                 <MenuItem Header="Ordner öffnen" Command="{Binding OpenFolderCommand}" FontWeight="SemiBold">
@@ -44,10 +53,18 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
+                        <Border Grid.RowSpan="4" Grid.ColumnSpan="2" Width="2" HorizontalAlignment="Left"
+                                Margin="-14,-11,0,-11" Background="{DynamicResource TextFillColorTertiaryBrush}"
+                                Opacity="0.6" IsHitTestVisible="False"
+                                Visibility="{Binding IsAdvanced, Converter={StaticResource BoolToVis}}" />
 
                         <!-- Kopf: Label + Etiketten -->
                         <WrapPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
                             <TextBlock Text="{Binding Label}" FontWeight="SemiBold" TextWrapping="Wrap" VerticalAlignment="Center" />
+                            <Border Style="{StaticResource Badge}" Visibility="{Binding IsAdvanced, Converter={StaticResource BoolToVis}}"
+                                    AutomationProperties.Name="Erweiterte Einstellung">
+                                <TextBlock Text="Erweitert" FontSize="11.5" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Border>
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" Margin="8,0,0,0" FontSize="13"
                                        Foreground="{DynamicResource SystemFillColorCautionBrush}"
                                        ToolTip="{Binding LockToolTip}" AutomationProperties.Name="gesperrt"
@@ -71,7 +88,7 @@
                             <Button Style="{StaticResource IconButton}" Command="{Binding ToggleFavoriteCommand}" IsEnabled="{Binding CanToggleFavorite}"
                                     ToolTip="{Binding FavoriteToolTip}" AutomationProperties.Name="{Binding FavoriteAutomationName}"
                                     Margin="0,0,6,0">
-                                <TextBlock Style="{StaticResource IconText}" Text="{Binding FavoriteGlyph}" />
+                                <TextBlock Style="{StaticResource FavoriteStarIcon}" Text="{Binding FavoriteGlyph}" />
                             </Button>
 
                             <Button Style="{StaticResource IconButton}" Command="{Binding ResetCommand}" Margin="0,0,6,0"

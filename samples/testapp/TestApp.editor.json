@@ -1,0 +1,156 @@
+{
+  "formatVersion": 1,
+  "app": {
+    "name": "TestApp",
+    "title": "TestApp JSON Configuration Demo",
+    "base": "TestApp.json",
+    "userFile": "%APPDATA%\\JsonConfigEditor\\TestApp\\appsettings.local.json",
+    "machineFile": "%TEMP%\\JsonConfigEditor.TestApp.machine.json"
+  },
+  "favorites": [
+    "General:Enabled",
+    "Paths:OutputFolder",
+    "Runtime:TimeoutSeconds"
+  ],
+  "sections": {
+    "General": {
+      "label": "General",
+      "order": 1,
+      "icon": "settings",
+      "description": "Boolean, text, integer and decimal settings."
+    },
+    "Paths": {
+      "label": "Paths",
+      "order": 2,
+      "icon": "folder",
+      "description": "Path fields with environment expansion and path checks."
+    },
+    "Runtime": {
+      "label": "Runtime",
+      "order": 3,
+      "icon": "clock",
+      "description": "Limits, units, restart hints and advanced settings."
+    },
+    "Collections": {
+      "label": "Collections",
+      "order": 4,
+      "icon": "list",
+      "description": "Array and object values edited as JSON."
+    },
+    "Internal": {
+      "label": "Internal",
+      "order": 5,
+      "icon": "tools",
+      "description": "A hidden section for internal settings.",
+      "hidden": true
+    }
+  },
+  "fields": {
+    "General:Enabled": {
+      "label": "Enabled",
+      "description": "Boolean field rendered as a toggle.",
+      "type": "bool"
+    },
+    "General:DisplayName": {
+      "label": "Display name",
+      "description": "Editable text field.",
+      "type": "string"
+    },
+    "General:RetryCount": {
+      "label": "Retry count",
+      "description": "Integer field with minimum, maximum, unit and zero semantics.",
+      "type": "int",
+      "min": 0,
+      "max": 10,
+      "unit": "retries",
+      "zeroMeans": "no retries"
+    },
+    "General:ScaleFactor": {
+      "label": "Scale factor",
+      "description": "Decimal field with a bounded range.",
+      "type": "number",
+      "min": 0,
+      "max": 2,
+      "unit": "x"
+    },
+    "General:ReadOnlyText": {
+      "label": "Read-only example",
+      "description": "A descriptor-level read-only field.",
+      "type": "string",
+      "readOnly": true
+    },
+    "General:AdvancedFactor": {
+      "label": "Advanced factor",
+      "description": "An advanced field shown when advanced settings are enabled.",
+      "type": "number",
+      "min": 0,
+      "max": 1,
+      "unit": "factor",
+      "advanced": true
+    },
+    "General:HiddenValue": {
+      "label": "Hidden value",
+      "description": "A field hidden by the descriptor.",
+      "type": "string",
+      "hidden": true
+    },
+    "Paths:OutputFolder": {
+      "label": "Output folder",
+      "description": "Folder path with empty-value guidance and cloud-folder warning.",
+      "type": "path",
+      "pathKind": "folder",
+      "mustExist": false,
+      "emptyMeans": "Documents\\TestApp",
+      "warnCloudFolder": true
+    },
+    "Paths:TemplateFile": {
+      "label": "Template file",
+      "description": "A required file resolved relative to the base configuration.",
+      "type": "path",
+      "pathKind": "file",
+      "mustExist": true,
+      "expandEnv": false,
+      "relativeTo": "base"
+    },
+    "Paths:OptionalFolder": {
+      "label": "Optional folder",
+      "description": "An optional folder path with environment-variable expansion.",
+      "type": "path",
+      "pathKind": "folder",
+      "mustExist": false,
+      "expandEnv": true
+    },
+    "Paths:RelativeFolder": {
+      "label": "Relative folder",
+      "description": "A folder path resolved relative to the base configuration.",
+      "type": "path",
+      "pathKind": "folder",
+      "mustExist": false,
+      "expandEnv": false,
+      "relativeTo": "base"
+    },
+    "Runtime:TimeoutSeconds": {
+      "label": "Timeout",
+      "description": "Zero disables the timeout.",
+      "type": "int",
+      "min": 0,
+      "max": 3600,
+      "unit": "seconds",
+      "zeroMeans": "disabled"
+    },
+    "Runtime:RestartBehavior": {
+      "label": "Restart behavior",
+      "description": "Changes to this setting require an application restart.",
+      "type": "string",
+      "restartRequired": true
+    },
+    "Runtime:MaxItems": {
+      "label": "Maximum items",
+      "description": "Integer field with a bounded range.",
+      "type": "int",
+      "min": 1,
+      "max": 100,
+      "unit": "items"
+    }
+  }
+}

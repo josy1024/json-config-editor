@@ -53,6 +53,7 @@ public sealed class FieldViewModel : ObservableObject
     public bool CanEdit => Field.IsEditable && !_owner.IsReadOnly;
     public bool IsReadOnlyField => !CanEdit;
     public bool IsFavorite => Field.IsFavorite;
+    public bool IsAdvanced => Field.Advanced;
     public bool CanToggleFavorite => !_owner.IsReadOnly && _owner.Document.UserFileError == null;
     public string FavoriteGlyph => IsFavorite ? Icons.StarFill : Icons.Star;
     public string FavoriteToolTip => IsFavorite ? "Favorit entfernen" : "Als Favorit markieren";
