@@ -2,7 +2,7 @@
 
 Was sich pro Version geändert hat. Neueste oben. Releases mit Zip und SHA256: [GitHub Releases](https://github.com/josy1024/json-config-editor/releases).
 
-## Unveröffentlicht
+## v0.4.1 – 21.11.2026
 
 Selbstheilung und tolerantes Verhalten, damit keine Einstellungen still verloren gehen.
 
