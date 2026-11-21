@@ -23,13 +23,8 @@ public sealed class EditorDescriptor
 
     public static EditorDescriptor Load(string path)
     {
-        string text;
-        try { text = File.ReadAllText(path); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            throw new ConfigEditorException($"Descriptor {path} nicht lesbar: {ex.Message}", ExitCodes.BadArguments, ex);
-        }
-        return Parse(text, path);
+        var text = SafeFile.ReadText(path, "Descriptor", ExitCodes.BadArguments);
+        return Parse(text, $"Descriptor {path}");
     }
 
     public static EditorDescriptor Parse(string text, string what = "Descriptor")
@@ -39,6 +34,11 @@ public sealed class EditorDescriptor
         catch (JsonException ex)
         {
             throw new ConfigEditorException($"{what} ist kein gültiges JSON: {ex.Message}", ExitCodes.BrokenFile, ex);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or NotSupportedException)
+        {
+            // z. B. doppelte Keys in "fields" oder falscher Typ an einer Stelle, die der Serializer nicht meldet
+            throw new ConfigEditorException($"{what} ist ungültig: {ex.Message}", ExitCodes.BrokenFile, ex);
         }
         d ??= new EditorDescriptor();
         // Dictionaries kommen vom Serializer case-sensitive, Keys sollen wie bei IConfiguration egal sein

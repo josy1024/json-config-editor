@@ -1,0 +1,177 @@
+<UserControl x:Class="JsonConfigEditor.Wpf.AppPickerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:JsonConfigEditor.Wpf.ViewModels"
+             x:Name="Root"
+             FontSize="14"
+             AllowDrop="True"
+             Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/JsonConfigEditor.Wpf;component/Themes/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid Background="{DynamicResource ApplicationBackgroundBrush}">
+        <Grid MaxWidth="820" Margin="28,22,28,18">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Kopf -->
+            <Grid Grid.Row="0" Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource IconText}" Text="&#xE713;" FontSize="26" Margin="0,0,14,0"
+                           Foreground="{DynamicResource AccentFillColorDefaultBrush}" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Einstellungen öffnen" FontSize="22" FontWeight="SemiBold" />
+                    <TextBlock Text="Welche App möchtest du einstellen? Doppelklick oder Enter öffnet." Style="{StaticResource SecondaryText}" FontSize="13" />
+                </StackPanel>
+                <Button Grid.Column="2" Style="{StaticResource IconButton}" Command="{Binding RefreshCommand}"
+                        ToolTip="Liste neu laden" AutomationProperties.Name="Liste neu laden" VerticalAlignment="Top">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE72C;" />
+                </Button>
+            </Grid>
+
+            <!-- Fehler -->
+            <Border Grid.Row="1" Visibility="{Binding HasError, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10"
+                    Padding="14,9" CornerRadius="6" BorderThickness="1"
+                    BorderBrush="{DynamicResource SystemFillColorCriticalBrush}"
+                    Background="{DynamicResource SystemFillColorCriticalBackgroundBrush}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xEA39;" Margin="0,0,10,0"
+                               Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                    <TextBlock Text="{Binding Error}" TextWrapping="Wrap" MaxWidth="700" />
+                </StackPanel>
+            </Border>
+
+            <!-- Liste -->
+            <Border Grid.Row="2" CornerRadius="8" BorderThickness="1"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    Background="{DynamicResource LayerFillColorDefaultBrush}">
+                <Grid>
+                    <ListBox x:Name="List" ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}"
+                             Background="Transparent" BorderThickness="0" Padding="4"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             MouseDoubleClick="OnListDoubleClick" KeyDown="OnListKeyDown"
+                             AutomationProperties.Name="Bekannte Apps">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:AppEntryViewModel}">
+                                <Grid Margin="4,6" ToolTip="{Binding Path}">
+                                    <Grid.Style>
+                                        <Style TargetType="Grid">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsAvailable}" Value="False">
+                                                    <Setter Property="Opacity" Value="0.55" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Grid.Style>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Style="{StaticResource IconText}" Text="{Binding Glyph}" FontSize="18"
+                                               Margin="4,0,14,0" VerticalAlignment="Top" Padding="0,2,0,0" />
+                                    <StackPanel Grid.Column="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <Border Style="{StaticResource Badge}" ToolTip="{Binding SourceTooltip}">
+                                                <TextBlock Text="{Binding SourceLabel}" FontSize="11.5" />
+                                            </Border>
+                                            <TextBlock Text="{Binding LastOpenedText}" Margin="10,0,0,0" FontSize="12" VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                       Visibility="{Binding HasLastOpened, Converter={StaticResource BoolToVis}}" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Path}" Style="{StaticResource SecondaryText}" TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0"
+                                                    Visibility="{Binding HasProblem, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Style="{StaticResource IconText}" Text="&#xE7BA;" FontSize="12" Margin="0,0,6,0"
+                                                       Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                            <TextBlock Text="{Binding Problem}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Style="{StaticResource IconButton}" VerticalAlignment="Center"
+                                            Command="{Binding DataContext.ForgetCommand, ElementName=Root}" CommandParameter="{Binding}"
+                                            Visibility="{Binding CanForget, Converter={StaticResource BoolToVis}}"
+                                            ToolTip="Aus „Zuletzt“ entfernen" AutomationProperties.Name="Aus Zuletzt entfernen">
+                                        <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="11" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- Leer -->
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="520" Margin="24"
+                                Visibility="{Binding IsEmpty, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE8B7;" FontSize="34" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock Text="Noch keine Apps bekannt" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,10,0,6" />
+                        <TextBlock Style="{StaticResource SecondaryText}" TextAlignment="Center"
+                                   Text="„Andere Datei öffnen…“ und die appsettings.json oder appsettings.editor.json der App wählen, oder die Datei hierher ziehen. Geöffnete Apps merkt sich die Liste." />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Knöpfe -->
+            <Grid Grid.Row="3" Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Button Content="Öffnen" Command="{Binding OpenCommand}" Padding="22,6" Margin="0,0,8,0"
+                        Style="{DynamicResource AccentButtonStyle}" IsDefault="True" />
+                <Button Grid.Column="1" Command="{Binding BrowseCommand}" Padding="14,6">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" FontSize="13" Margin="0,0,8,0" />
+                        <TextBlock Text="Andere Datei öffnen…" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="3" Style="{StaticResource IconButton}" Command="{Binding EditListCommand}"
+                        ToolTip="{Binding UserListFile}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE70F;" FontSize="12" Margin="0,0,8,0" />
+                        <TextBlock Text="Eigene Liste bearbeiten" FontSize="12.5" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+
+            <!-- Fuß: Tipp, Hinweise, Version -->
+            <StackPanel Grid.Row="4" Margin="0,12,0,0">
+                <TextBlock Style="{StaticResource SecondaryText}" FontSize="12"
+                           Text="Tipp: Datei oder Ordner einer App ins Fenster ziehen. Die IT kann Apps für alle vorgeben (%ProgramData%\JsonConfigEditor\apps.json)." />
+                <Expander Margin="0,8,0,0" Visibility="{Binding HasWarnings, Converter={StaticResource BoolToVis}}">
+                    <Expander.Header>
+                        <TextBlock Text="Hinweise zu den App-Listen" FontSize="12.5" />
+                    </Expander.Header>
+                    <ItemsControl ItemsSource="{Binding Warnings}" Margin="0,4,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" Style="{StaticResource SecondaryText}" Margin="0,0,0,4" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+                <TextBlock Text="{Binding Version, StringFormat=json-config-editor {0}}" Margin="0,8,0,0"
+                           FontSize="11.5" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

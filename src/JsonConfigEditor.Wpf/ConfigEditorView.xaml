@@ -151,6 +151,9 @@
                            Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
                 <TextBlock Text="Einstellungen konnten nicht geladen werden" FontSize="20" FontWeight="SemiBold" Margin="0,12,0,8" />
                 <TextBlock Text="{Binding LoadError}" TextWrapping="Wrap" Style="{StaticResource SecondaryText}" FontSize="14" />
+                <Button Content="Andere Einstellungen öffnen…" Command="{Binding OpenOtherCommand}" HorizontalAlignment="Left"
+                        Padding="14,5" Margin="0,16,0,0"
+                        Visibility="{Binding CanOpenOther, Converter={StaticResource BoolToVis}}" />
             </StackPanel>
         </Border>
 
@@ -197,6 +200,13 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE8B7;" FontSize="12" Margin="0,0,8,0" />
                             <TextBlock Text="Ordner der Einstellungen" FontSize="12.5" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource IconButton}" HorizontalAlignment="Left" Command="{Binding OpenOtherCommand}"
+                            Visibility="{Binding CanOpenOther, Converter={StaticResource BoolToVis}}" Margin="-6,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" FontSize="12" Margin="0,0,8,0" />
+                            <TextBlock Text="Andere App öffnen…" FontSize="12.5" />
                         </StackPanel>
                     </Button>
                     <TextBlock Text="{Binding Version, StringFormat=json-config-editor {0}}" Margin="0,8,0,0"
@@ -284,6 +294,28 @@
                                     <Button Content="Im Texteditor öffnen" Command="{Binding OpenUserFileCommand}" Padding="12,4" Margin="0,0,8,0" />
                                     <Button Content="Sicherung anlegen und neu beginnen" Command="{Binding BackupBrokenCommand}" Padding="12,4" />
                                 </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border Visibility="{Binding HasWriteBlocked, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10"
+                                Padding="14,10" CornerRadius="6" BorderThickness="1"
+                                BorderBrush="{DynamicResource SystemFillColorCautionBrush}"
+                                Background="{DynamicResource SystemFillColorAttentionBackgroundBrush}">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" Margin="0,0,10,0" />
+                                    <TextBlock Text="Nur Ansicht: Die Einstellungen können hier nicht gespeichert werden."
+                                               FontWeight="SemiBold" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding WriteBlockedReason}" TextWrapping="Wrap" Margin="0,4,0,0" Style="{StaticResource SecondaryText}" />
+                            </StackPanel>
+                        </Border>
+                        <Border Visibility="{Binding IsReadOnlyByOption, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10"
+                                Padding="14,8" CornerRadius="6" BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                Background="{DynamicResource SubtleFillColorSecondaryBrush}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" Margin="0,0,10,0" />
+                                <TextBlock Text="Nur Ansicht (--readonly)." TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
                         <Border Visibility="{Binding HasInfo, Converter={StaticResource BoolToVis}}" Margin="0,0,0,10"

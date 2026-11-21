@@ -99,6 +99,8 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         ReloadCommand = new RelayCommand(ReloadFromDisk);
         ClearSearchCommand = new RelayCommand(() => SearchText = "");
 
+        OpenOtherCommand = new RelayCommand(() => OpenOtherRequested?.Invoke(this, EventArgs.Empty));
+
         try
         {
             Document = ConfigDocument.Load(options);
@@ -107,8 +109,12 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         {
             LoadError = ex.Message;
             LoadErrorCode = ex.ExitCode;
+            Log.Warn("Laden fehlgeschlagen: " + ex.Message);
             return;
         }
+        Document.CheckWritable();
+        Log.Info($"Geöffnet: {Document.Paths.UserFile} (Basis {Document.Paths.BaseFile})"
+                 + (Document.WriteBlockedReason != null ? " – nur Ansicht: " + Document.WriteBlockedReason : ""));
         Build();
         StartWatching();
         ConfigWriter.Written += OnWritten;
@@ -120,6 +126,17 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public int LoadErrorCode { get; }
     public bool HasLoadError => LoadError != null;
     public bool IsReadOnly => Document?.ReadOnly ?? true;
+    /// <summary>User-Datei nicht beschreibbar: Editor zeigt nur an.</summary>
+    public string? WriteBlockedReason => Document?.WriteBlockedReason;
+    public bool HasWriteBlocked => WriteBlockedReason != null;
+    /// <summary>Mit --readonly gestartet.</summary>
+    public bool IsReadOnlyByOption => Options.ReadOnly && !HasLoadError;
+
+    /// <summary>Host kann "Andere Einstellungen öffnen…" anbieten (die EXE tut das).</summary>
+    public bool CanOpenOther { get => _canOpenOther; set => Set(ref _canOpenOther, value); }
+    private bool _canOpenOther;
+    public ICommand OpenOtherCommand { get; }
+    public event EventHandler? OpenOtherRequested;
 
     public string Title => Document?.Title ?? "Einstellungen";
     public string AppName => Document?.Paths.AppName ?? "Einstellungen";
@@ -326,8 +343,13 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     {
         if (Document == null) return;
         string? text = null;
-        try { text = File.Exists(Document.Paths.UserFile) ? File.ReadAllText(Document.Paths.UserFile) : null; }
-        catch (IOException) { KickReload(); return; }
+        try { text = File.Exists(Document.Paths.UserFile) ? SafeFile.ReadText(Document.Paths.UserFile, "User-Datei") : null; }
+        catch (ConfigEditorException ex)
+        {
+            // gesperrt/kein Zugriff: SafeFile hat schon ein paar Mal probiert, nicht endlos weiter
+            Info("Neu laden fehlgeschlagen: " + ex.Message);
+            return;
+        }
         if (text != null && text == _lastWritten) return;
 
         var hadError = Document.UserFileError != null;

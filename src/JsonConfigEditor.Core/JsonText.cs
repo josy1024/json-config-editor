@@ -27,12 +27,38 @@ public static class JsonText
     {
         if (string.IsNullOrWhiteSpace(text)) return NewObject();
         JsonNode? node;
-        try { node = JsonNode.Parse(text, NodeOptions, DocumentOptions); }
+        try
+        {
+            node = JsonNode.Parse(text, NodeOptions, DocumentOptions);
+            // JsonObject liest lazy: doppelte Keys ("a" und "A") fallen erst beim Zugriff auf, hier gleich prüfen
+            if (node is JsonObject o) Touch(o);
+        }
         catch (JsonException ex)
         {
             throw new ConfigEditorException($"{what} ist kein gültiges JSON: {ex.Message}", ExitCodes.BrokenFile, ex);
         }
+        catch (ArgumentException ex)
+        {
+            throw new ConfigEditorException($"{what}: Key doppelt (Groß-/Kleinschreibung zählt nicht): {ex.Message}", ExitCodes.BrokenFile, ex);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ConfigEditorException($"{what} ist ungültig: {ex.Message}", ExitCodes.BrokenFile, ex);
+        }
         return node as JsonObject ?? throw new ConfigEditorException($"{what} ist kein JSON-Objekt", ExitCodes.BrokenFile);
+    }
+
+    private static void Touch(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject o:
+                foreach (var kv in o) Touch(kv.Value);
+                break;
+            case JsonArray a:
+                foreach (var item in a) Touch(item);
+                break;
+        }
     }
 
     public static JsonObject NewObject() => new(NodeOptions);

@@ -52,6 +52,7 @@ public static class ConfigWriter
 
     private static void EnsureWritable(ConfigDocument doc, ConfigField field)
     {
+        if (doc.WriteBlockedReason != null) throw new InvalidOperationException("Nur Ansicht: " + doc.WriteBlockedReason);
         if (doc.ReadOnly) throw new InvalidOperationException("Editor läuft read-only.");
         if (field.IsLocked) throw new FieldLockedException(field.Key);
         if (field.ReadOnly) throw new InvalidOperationException($"{field.Key} ist read-only.");
@@ -66,7 +67,7 @@ public static class ConfigWriter
         var path = doc.Paths.UserFile;
         if (!File.Exists(path)) return JsonText.NewObject();
         // frisch von Platte: was die App inzwischen reingeschrieben hat, bleibt
-        return JsonText.ParseObject(ConfigDocument.ReadText(path), $"User-Datei {path}");
+        return JsonText.ParseObject(ConfigDocument.ReadText(path, "User-Datei"), $"User-Datei {path}");
     }
 
     private static void Save(ConfigDocument doc, JsonObject root)

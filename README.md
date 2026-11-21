@@ -13,6 +13,7 @@ Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](
 * **Sofort speichern**, atomar. Unbekannte Keys, `_hinweis`-Metadaten und Listen in der User-Datei bleiben erhalten.
 * Suche, Filter pro Abschnitt, "Geändert"-Ansicht, Strg+F.
 * Ändert die App die Datei selbst, lädt der Editor neu.
+* Ohne Parameter: Startseite mit bekannten Apps (IT-Liste, eigene Liste, zuletzt geöffnet).
 
 ## Aufruf
 
@@ -30,16 +31,48 @@ JsonConfigEditor.exe --base "C:\Program Files\MeineApp\appsettings.json" --app M
 
 | Option | Bedeutung |
 |---|---|
-| `<descriptor>` | Pfad zur `*.editor.json` |
+| `<pfad>` | `*.editor.json`, `appsettings.json`, `*.local.json` oder Ordner einer App, wird erkannt |
 | `--base`, `--user`, `--machine` | Dateien direkt angeben (überschreibt Descriptor) |
 | `--app <Name>` | Default-Pfade unter `%APPDATA%` und `%ProgramData%` |
 | `--section <Name>` | bei diesem Abschnitt öffnen |
 | `--owner-pid <pid>` | schließt sich, wenn die aufrufende App endet |
 | `--readonly` | nur anzeigen |
 | `--validate` | ohne Fenster prüfen (CI, IT) |
+| `--pick` | immer die Startseite zeigen |
+| `--list` | bekannte Apps ausgeben |
 | `--version`, `--help` | |
 
-Exit-Codes: `0` OK, `2` Datei kaputt, `3` Parameterfehler, `4` Validierung fehlgeschlagen. Pro User-Datei läuft nur ein Fenster, ein zweiter Aufruf holt es nach vorne.
+Exit-Codes: `0` OK, `1` unerwarteter Fehler, `2` Datei kaputt, `3` Parameterfehler, `4` Validierung fehlgeschlagen. Pro User-Datei läuft nur ein Fenster, ein zweiter Aufruf holt es nach vorne.
+
+### Ohne Parameter (Doppelklick)
+
+Liegt genau eine `appsettings.editor.json` neben der EXE oder im aktuellen Ordner, öffnet der Editor sie direkt. Sonst kommt eine Startseite mit allen bekannten Apps, dazu "Andere Datei öffnen…" und Drag & Drop.
+
+Die Liste kommt aus `apps.json`-Dateien und den zuletzt geöffneten Apps:
+
+| Datei | Für |
+|---|---|
+| `%ProgramData%\JsonConfigEditor\apps.json` | IT, für alle User am Rechner |
+| `apps.json` neben `JsonConfigEditor.exe` | Firmen- oder Portable-Paket |
+| `%APPDATA%\JsonConfigEditor\apps.json` | eigene Liste ("Eigene Liste bearbeiten" legt sie an) |
+| `%APPDATA%\JsonConfigEditor\recent.json` | automatisch, die letzten 10 |
+
+```json
+{
+  "apps": [
+    { "name": "PraxisRecorder", "descriptor": "%ProgramFiles%\\PraxisRecorder\\appsettings.editor.json" },
+    { "name": "MeineApp", "base": "C:\\Tools\\MeineApp\\appsettings.json" }
+  ]
+}
+```
+
+`descriptor` oder `base`, optional `user`, `machine`. Relative Pfade gelten ab dem Ordner der `apps.json`. Fehlt eine Datei, bleibt der Eintrag ausgegraut sichtbar.
+
+### Wenn etwas nicht passt
+
+* Kann die User-Datei nicht geschrieben werden (Ordner gesperrt, Datei schreibgeschützt), öffnet der Editor **nur zur Ansicht** und sagt warum.
+* Dateien über 5 MB, Binärdateien, Ordner statt Datei, ungültige Zeichen im Pfad: klare Meldung statt Absturz.
+* Log: `%LOCALAPPDATA%\JsonConfigEditor\logs`, 7 Tage. Enthält Pfade und Keys, keine Werte.
 
 PowerShell wartet bei GUI-Programmen nicht auf den Exit-Code. Für `--validate` deshalb pipen:
 

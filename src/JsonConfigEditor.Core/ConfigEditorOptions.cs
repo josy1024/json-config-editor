@@ -38,6 +38,8 @@ public class ConfigEditorException(string message, int exitCode, Exception? inne
 public static class ExitCodes
 {
     public const int Ok = 0;
+    /// <summary>Unerwarteter Fehler, Details im Log.</summary>
+    public const int Crash = 1;
     public const int BrokenFile = 2;
     public const int BadArguments = 3;
     public const int ValidationFailed = 4;

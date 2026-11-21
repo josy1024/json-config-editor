@@ -201,6 +201,7 @@ public sealed class FieldViewModel : ObservableObject
         catch (Exception ex) when (ex is ConfigEditorException or InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             Error = "Nicht gespeichert: " + ex.Message;
+            Log.Warn($"{Key} nicht gespeichert ({_owner.Document.Paths.UserFile}): {ex.Message}");
         }
         CheckPath();
         RaiseState();
@@ -217,6 +218,7 @@ public sealed class FieldViewModel : ObservableObject
         catch (Exception ex) when (ex is ConfigEditorException or InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             Error = "Nicht zurückgesetzt: " + ex.Message;
+            Log.Warn($"{Key} nicht zurückgesetzt: {ex.Message}");
         }
     }
 

@@ -27,7 +27,10 @@ public sealed partial class ConfigDocument
     /// <summary>_hinweis auf oberster Ebene.</summary>
     public string? RootHint { get; private set; }
 
-    public bool ReadOnly => Options.ReadOnly;
+    /// <summary>User-Datei kann nicht geschrieben werden (Ordner gesperrt, schreibgeschützt …), siehe <see cref="CheckWritable"/>.</summary>
+    public string? WriteBlockedReason { get; private set; }
+
+    public bool ReadOnly => Options.ReadOnly || WriteBlockedReason != null;
 
     private readonly List<ConfigSection> _sections = [];
     private readonly List<ConfigField> _fields = [];
@@ -72,7 +75,7 @@ public sealed partial class ConfigDocument
     {
         if (!File.Exists(Paths.BaseFile))
             throw new ConfigEditorException($"Basisdatei nicht gefunden: {Paths.BaseFile}", ExitCodes.BrokenFile);
-        var baseText = ReadText(Paths.BaseFile);
+        var baseText = ReadText(Paths.BaseFile, "Basisdatei");
         var baseObj = JsonText.ParseObject(baseText, $"Basisdatei {Paths.BaseFile}");
         var comments = CommentScanner.Scan(baseText);
 
@@ -83,7 +86,7 @@ public sealed partial class ConfigDocument
         {
             try
             {
-                var m = JsonText.ParseObject(ReadText(Paths.MachineFile), $"Machine-Datei {Paths.MachineFile}");
+                var m = JsonText.ParseObject(ReadText(Paths.MachineFile, "Machine-Datei"),$"Machine-Datei {Paths.MachineFile}");
                 if (m["Locked"] is JsonObject l) Flatten(l, "", locked);
                 Flatten(m, "", machine, skipTopLevel: "Locked");
             }
@@ -97,7 +100,7 @@ public sealed partial class ConfigDocument
         UserFileError = null;
         if (File.Exists(Paths.UserFile))
         {
-            try { Flatten(JsonText.ParseObject(ReadText(Paths.UserFile), $"User-Datei {Paths.UserFile}"), "", user); }
+            try { Flatten(JsonText.ParseObject(ReadText(Paths.UserFile, "User-Datei"),$"User-Datei {Paths.UserFile}"), "", user); }
             catch (Exception ex) when (ex is ConfigEditorException or IOException or UnauthorizedAccessException)
             {
                 UserFileError = ex.Message;
@@ -380,12 +383,14 @@ public sealed partial class ConfigDocument
         }
     }
 
-    internal static string ReadText(string path)
+    internal static string ReadText(string path, string what = "Datei") => SafeFile.ReadText(path, what);
+
+    /// <summary>
+    /// Prüft, ob die User-Datei geschrieben werden kann. Wenn nicht: <see cref="WriteBlockedReason"/> gesetzt,
+    /// Dokument ist dann read-only. Nicht in <see cref="Load"/>, weil es den Ordner anlegt (bei --validate unerwünscht).
+    /// </summary>
+    public void CheckWritable()
     {
-        try { return File.ReadAllText(path); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            throw new ConfigEditorException($"{path} nicht lesbar: {ex.Message}", ExitCodes.BrokenFile, ex);
-        }
+        WriteBlockedReason = Options.ReadOnly ? null : SafeFile.CheckWritable(Paths.UserFile);
     }
 }

@@ -1,6 +1,6 @@
 # json-config-editor – Spec
 
-Stand 21.11.2026. v0.1.0 gebaut: alles aus Abschnitt 1 bis 12, Abschnitt 13 (Später) noch offen. Bedienung siehe [README](../README.md).
+Stand 21.11.2026. v0.1.0 gebaut: alles aus Abschnitt 1 bis 12, Abschnitt 13 (Später) noch offen. v0.2.0: Startseite ohne Parameter, App-Listen, Robustheit (8a, 8b). Bedienung siehe [README](../README.md).
 
 Kernfrage: Wie macht man eine `appsettings.json` für normale Anwender übersichtlich editierbar, ohne dass sie JSON anfassen müssen und ohne dass ein Update ihre Einstellungen überschreibt?
 
@@ -224,7 +224,8 @@ JsonConfigEditor.exe --base <appsettings.json> [--user <pfad>] [--machine <pfad>
 
 | Parameter | Bedeutung |
 |---|---|
-| `<descriptor>` (positional) | Pfad zur `*.editor.json` |
+| `<pfad>` (positional) | `*.editor.json` (oder JSON mit `formatVersion`), `appsettings.json`, `*.local.json` (Basis daneben, diese Datei wird beschrieben) oder Ordner einer App |
+| `--descriptor <pfad>` | Descriptor ausdrücklich angeben |
 | `--base` | Basisdatei (überschreibt Descriptor) |
 | `--user` | User-Datei (überschreibt Descriptor) |
 | `--machine` | Machine-Datei (überschreibt Descriptor) |
@@ -234,9 +235,51 @@ JsonConfigEditor.exe --base <appsettings.json> [--user <pfad>] [--machine <pfad>
 | `--readonly` | alles nur anzeigen |
 | `--validate` | ohne UI: Descriptor + Dateien prüfen, Fehler auf stdout |
 | `--version` | Version auf stdout, Ende (für Updater der App) |
+| `--pick` | immer die Startseite zeigen |
+| `--list` | bekannte Apps auf stdout (Name, Quelle, Pfad, Problem) |
 
 * **Single-Instance pro User-Datei**: zweiter Aufruf mit derselben User-Datei holt das vorhandene Fenster nach vorne (Named Mutex + Named Pipe für "aktivieren"), wechselt ggf. zu `--section`.
-* Exit-Codes: `0` OK, `2` Datei kaputt, `3` Parameterfehler, `4` Validierung fehlgeschlagen.
+* Exit-Codes: `0` OK, `1` unerwarteter Fehler (Details im Log), `2` Datei kaputt, `3` Parameterfehler, `4` Validierung fehlgeschlagen.
+
+### 8a. Ohne Parameter (Doppelklick): Auto-Öffnen und Startseite
+
+1. Liegt **genau eine** `appsettings.editor.json` neben der EXE oder im aktuellen Ordner, wird sie direkt geöffnet.
+2. Sonst kommt die **Startseite** mit allen bekannten Apps, aus diesen Quellen (bei Doppelten gewinnt die obere):
+
+| Quelle | Datei | Badge |
+|---|---|---|
+| IT | `%ProgramData%\JsonConfigEditor\apps.json` | IT |
+| Paket | `apps.json` neben `JsonConfigEditor.exe` | Mitgeliefert |
+| User | `%APPDATA%\JsonConfigEditor\apps.json` | Meine Liste |
+| Suche | `appsettings.editor.json` neben der EXE / im aktuellen Ordner | Gefunden |
+| automatisch | `%APPDATA%\JsonConfigEditor\recent.json`, max. 10 | Zuletzt |
+
+Format `apps.json` (Kommentare erlaubt, `%VARS%`, relative Pfade gelten ab dem Ordner der `apps.json`):
+
+```json
+{
+  "apps": [
+    { "name": "PraxisRecorder", "descriptor": "%ProgramFiles%\\PraxisRecorder\\appsettings.editor.json" },
+    { "name": "MeineApp", "base": "C:\\Tools\\MeineApp\\appsettings.json", "user": "%APPDATA%\\MeineApp\\appsettings.local.json" }
+  ]
+}
+```
+
+* Pro Eintrag `descriptor` **oder** `base`, optional `user`, `machine`, `name`. Ohne `name`: `app.name` aus dem Descriptor, sonst Ordnername (Build-Ordner wie `bin`, `Release`, `net10.0` werden übersprungen). Ohne Descriptor und ohne `user` leitet `name` die Default-Pfade ab wie `--app`.
+* Sortierung: zuletzt geöffnete oben, dann in Quellen-Reihenfolge. Fehlt die Datei, bleibt der Eintrag sichtbar, ausgegraut mit "Datei fehlt" (z. B. Netzlaufwerk gerade weg). "Zuletzt"-Einträge lassen sich mit × oder Entf entfernen.
+* "Andere Datei öffnen…" (Dateidialog) und Drag & Drop einer Datei oder eines App-Ordners. Die Datei wird wie der Positionsparameter erkannt. Passt sie nicht, steht der Grund oben in Rot und die Startseite bleibt offen.
+* "Eigene Liste bearbeiten" legt `%APPDATA%\JsonConfigEditor\apps.json` mit kommentierter Vorlage an und öffnet sie im Texteditor.
+* Kaputte `apps.json` wird übersprungen, Hinweis unten auf der Startseite. Jede erfolgreich geöffnete App landet in "Zuletzt".
+* Im Editor-Fenster führt "Andere App öffnen…" (links unten, nur in der EXE) zur Startseite in einem neuen Prozess.
+
+### 8b. Robustheit
+
+* **Dateien lesen**: Ordner statt Datei, über 5 MB, Binärdatei, kein Zugriff → klare Meldung statt Absturz. Lesen mit `FileShare.ReadWrite | Delete`, die App darf die Datei gleichzeitig offen haben. Gesperrt (Virenscanner) → bis zu 3× kurz nochmal.
+* **Pfade**: ungültige Zeichen (`< > " | ? *`, `:` mitten im Pfad, Steuerzeichen) in Parametern, Descriptor oder `apps.json` → Parameterfehler (Exit 3) mit Angabe, welcher Pfad. User-Datei = Basis, Machine oder Descriptor → Fehler. `app.base` zeigt auf den Descriptor selbst → Fehler mit Hinweis.
+* **JSON**: doppelte Keys, die sich nur in Groß-/Kleinschreibung unterscheiden, gelten als kaputte Datei (IConfiguration würde einen stillschweigend gewinnen lassen).
+* **Nicht beschreibbar**: beim Öffnen wird geprüft, ob die User-Datei geschrieben werden kann (Ordner anlegbar, Datei nicht schreibgeschützt, Probe-Datei im Ordner). Wenn nicht: Editor öffnet **nur zur Ansicht** mit Banner und Grund, alle Felder gesperrt. `--validate` prüft das nicht (legt nichts an).
+* **Unerwartete Fehler**: im Fenster → Meldung mit Pfad zum Log, Fenster bleibt offen (gespeichert wird atomar, nichts ist halb). Außerhalb → Meldung (bzw. stderr), Exit 1.
+* **Log**: `%LOCALAPPDATA%\JsonConfigEditor\logs\editor-yyyyMMdd.log`, 7 Tage. Start, geöffnete Dateien, Lade- und Schreibfehler (Key + Grund, **keine Werte**), Abstürze mit Stacktrace. Nur die EXE loggt, eine App mit eingebetteter DLL nicht (`Log.Enabled`).
 
 ## 9. DLL-API
 
