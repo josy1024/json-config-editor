@@ -165,6 +165,7 @@ Reserviert für später (v1 ignoriert sie mit Warnung im Log): `options`, `optio
 ### Validierung des Descriptors
 
 * Key im Descriptor, den es in Base nicht gibt → Warnung im Log, Feld wird trotzdem gezeigt (Typ aus Descriptor, sonst string).
+* Falscher Typ an einer Stelle (`"min": "5"`, Feld ist kein Objekt, `favorites` keine Liste …) → nur dieser Eintrag wird ignoriert, Hinweis im Editor. Kaputtes JSON (Syntax) → Descriptor nicht ladbar.
 * `--validate` meldet solche Fehler mit Exit-Code (für CI der App).
 
 ## 6. Oberfläche
@@ -214,12 +215,14 @@ Bedienelemente:
 ## 7. Speichern
 
 * **Sofort**: jede gültige Änderung wird nach ~300 ms Debounce geschrieben. Kein Speichern-Button.
-* **Atomar**: in Temp-Datei schreiben, dann `File.Replace` (Muster wie `AtomicFile` in PraxisRecorder). Ordner der User-Datei wird bei Bedarf angelegt.
+* **Atomar**: in Temp-Datei schreiben, mit `Flush(true)` auf die Platte zwingen, dann umbenennen. Schlägt etwas fehl, wird die Temp-Datei gelöscht. Beim Öffnen werden eigene `*.tmp` älter als 1 Tag weggeräumt. Ordner der User-Datei wird bei Bedarf angelegt.
+* **Letzter guter Stand**: vor jedem Speichern kommt die bisherige (gültige) Fassung nach `appsettings.local.json.bak`.
+* **Datei gesperrt**: Wert bleibt im Feld, neuer Versuch alle 3 s (bis 20×), dann beim Verlassen des Felds. Externes Neuladen überschreibt so ein Feld nicht. Beim Schließen Rückfrage, wenn noch Werte offen sind.
 * **Sparse**: in die User-Datei kommt ein Key nur, wenn sein Wert vom wirksamen Wert aus Base+Machine abweicht. Wird ein Wert auf den Default zurückgestellt, fliegt der Key raus. Leere Abschnitte fliegen raus.
 * **Patchen statt neu schreiben**: die User-Datei wird als `JsonNode` geladen und nur an den geänderten Stellen angefasst. Unbekannte Keys, `_`-Metadaten, Arrays und Reihenfolge bleiben erhalten. Kommentare in der User-Datei gehen beim Schreiben verloren (steht so in der Doku).
 * Zahlen werden als JSON-Zahl geschrieben, Bools als `true/false`, nie als String.
 * **Externe Änderung** (App schreibt z. B. per Auto-Config): FileSystemWatcher → neu laden, Hinweis "Datei wurde von außen geändert, neu geladen". Feld, das gerade bearbeitet wird, behält den Fokus.
-* **Kaputte User-Datei**: nie überschreiben. Banner oben mit Fehlermeldung + "Im Texteditor öffnen" + "Sicherung anlegen und neu beginnen" (benennt um in `.kaputt-<datum>`).
+* **Kaputte User-Datei**: nie überschreiben. Banner oben mit Fehlermeldung + "Letzten guten Stand wiederherstellen" (nur wenn `.bak` gültig ist; kaputte Fassung wird zu `.kaputt-<datum>`) + "Im Texteditor öffnen" + "Sicherung anlegen und neu beginnen" (benennt um in `.kaputt-<datum>`).
 * **Gesperrte Felder** werden nie in die User-Datei geschrieben.
 
 ## 8. Kommandozeile (EXE)
@@ -291,6 +294,7 @@ Format `apps.json` (Kommentare erlaubt, `%VARS%`, relative Pfade gelten ab dem O
 * **Dateien lesen**: Ordner statt Datei, über 5 MB, Binärdatei, kein Zugriff → klare Meldung statt Absturz. Lesen mit `FileShare.ReadWrite | Delete`, die App darf die Datei gleichzeitig offen haben. Gesperrt (Virenscanner) → bis zu 3× kurz nochmal.
 * **Pfade**: ungültige Zeichen (`< > " | ? *`, `:` mitten im Pfad, Steuerzeichen) in Parametern, Descriptor oder `apps.json` → Parameterfehler (Exit 3) mit Angabe, welcher Pfad. User-Datei = Basis, Machine oder Descriptor → Fehler. `app.base` zeigt auf den Descriptor selbst → Fehler mit Hinweis.
 * **JSON**: doppelte Keys, die sich nur in Groß-/Kleinschreibung unterscheiden, gelten als kaputte Datei (IConfiguration würde einen stillschweigend gewinnen lassen).
+* **Kodierung**: BOM wird beachtet (UTF-8, UTF-16). Ohne BOM streng UTF-8, bei ungültigen Bytes Windows-1252 mit Hinweis. Die User-Datei wird dann beim nächsten Speichern UTF-8; Basis- oder Machine-Datei in ANSI ergibt einen Hinweis (die App liest sie als UTF-8).
 * **Nicht beschreibbar**: beim Öffnen wird geprüft, ob die User-Datei geschrieben werden kann (Ordner anlegbar, Datei nicht schreibgeschützt, Probe-Datei im Ordner). Wenn nicht: Editor öffnet **nur zur Ansicht** mit Banner und Grund, alle Felder gesperrt. `--validate` prüft das nicht (legt nichts an).
 * **Unerwartete Fehler**: im Fenster → Meldung mit Pfad zum Log, Fenster bleibt offen (gespeichert wird atomar, nichts ist halb). Außerhalb → Meldung (bzw. stderr), Exit 1.
 * **Log**: `%LOCALAPPDATA%\JsonConfigEditor\logs\editor-yyyyMMdd.log`, 7 Tage. Start, geöffnete Dateien, Lade- und Schreibfehler (Key + Grund, **keine Werte**), Abstürze mit Stacktrace. Nur die EXE loggt, eine App mit eingebetteter DLL nicht (`Log.Enabled`).

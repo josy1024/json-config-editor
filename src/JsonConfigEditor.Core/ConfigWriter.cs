@@ -17,13 +17,13 @@ public static class ConfigWriter
         var field = doc.Find(key) ?? throw new KeyNotFoundException($"Feld {key} gibt's nicht.");
         EnsureWritable(doc, field);
 
-        var root = ReadUser(doc);
+        var (root, before) = ReadUser(doc);
         var isDefault = field.HasDefault && JsonText.ValuesEqual(value, field.DefaultValue);
         if (isDefault)
             JsonText.RemovePath(root, field.Key);
         else
             JsonText.SetPath(root, field.Key, value?.DeepClone());
-        Save(doc, root);
+        Save(doc, root, before);
 
         field.HasUser = !isDefault;
         field.UserValue = isDefault ? null : value?.DeepClone();
@@ -34,8 +34,8 @@ public static class ConfigWriter
     {
         var field = doc.Find(key) ?? throw new KeyNotFoundException($"Feld {key} gibt's nicht.");
         EnsureWritable(doc, field);
-        var root = ReadUser(doc);
-        if (JsonText.RemovePath(root, field.Key)) Save(doc, root);
+        var (root, before) = ReadUser(doc);
+        if (JsonText.RemovePath(root, field.Key)) Save(doc, root, before);
         field.HasUser = false;
         field.UserValue = null;
     }
@@ -56,7 +56,7 @@ public static class ConfigWriter
             if (seen.Add(key)) favorites.Add(key);
         }
 
-        var root = ReadUser(doc);
+        var (root, before) = ReadUser(doc);
         JsonObject metadata;
         if (root.TryGetPropertyValue(ConfigDocument.EditorMetadataKey, out var metadataNode))
         {
@@ -72,7 +72,7 @@ public static class ConfigWriter
         var array = new JsonArray();
         foreach (var key in favorites) array.Add(JsonValue.Create(key));
         metadata["favorites"] = array;
-        Save(doc, root);
+        Save(doc, root, before);
         doc.SetFavorites(favorites);
     }
 
@@ -84,6 +84,51 @@ public static class ConfigWriter
         File.Move(path, backup);
         doc.Reload();
         return backup;
+    }
+
+    /// <summary>
+    /// Gibt es einen gültigen letzten Stand (<see cref="ConfigDocument.LastGoodFile"/>)? Dann dessen Zeitpunkt.
+    /// Die .bak wird nur aus einer Datei geschrieben, die sich gerade fehlerfrei lesen ließ.
+    /// </summary>
+    public static DateTime? LastGoodTime(ConfigDocument doc)
+    {
+        var bak = doc.LastGoodFile;
+        try
+        {
+            if (!File.Exists(bak)) return null;
+            JsonText.ParseObject(SafeFile.ReadText(bak, "Sicherung"), bak);
+            return File.GetLastWriteTime(bak);
+        }
+        catch (Exception ex) when (ex is ConfigEditorException or IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Kaputte User-Datei wegsichern (.kaputt-Datum) und den letzten gültigen Stand zurückholen.
+    /// Die eigenen Werte bleiben so bis auf die letzte Änderung erhalten.
+    /// </summary>
+    /// <returns>Pfad der weggesicherten kaputten Datei, null wenn keine da war.</returns>
+    public static string? RestoreLastGood(ConfigDocument doc)
+    {
+        if (doc.ReadOnly) throw new InvalidOperationException("Nur Ansicht: " + (doc.WriteBlockedReason ?? "--readonly"));
+        var bak = doc.LastGoodFile;
+        var text = SafeFile.ReadText(bak, "Sicherung");
+        JsonText.ParseObject(text, $"Sicherung {bak}"); // nur zurückholen, was auch gültig ist
+
+        var path = doc.Paths.UserFile;
+        string? broken = null;
+        if (File.Exists(path))
+        {
+            broken = $"{path}.kaputt-{DateTime.Now:yyyyMMdd-HHmmss}";
+            File.Move(path, broken);
+        }
+        AtomicFile.WriteAllText(path, text);
+        Written?.Invoke(path, text);
+        doc.Reload();
+        Log.Info($"User-Datei aus {bak} wiederhergestellt" + (broken != null ? $", kaputte Fassung: {broken}" : ""));
+        return broken;
     }
 
     private static void EnsureWritable(ConfigDocument doc, ConfigField field)
@@ -98,19 +143,29 @@ public static class ConfigWriter
             throw new ConfigEditorException($"User-Datei ist kaputt, es wird nichts geschrieben: {doc.UserFileError}", ExitCodes.BrokenFile);
     }
 
-    private static JsonObject ReadUser(ConfigDocument doc)
+    /// <summary>User-Datei frisch von Platte: was die App inzwischen reingeschrieben hat, bleibt. Text = Stand vorher (gültig), null wenn neu.</summary>
+    private static (JsonObject Root, string? Text) ReadUser(ConfigDocument doc)
     {
         var path = doc.Paths.UserFile;
-        if (!File.Exists(path)) return JsonText.NewObject();
-        // frisch von Platte: was die App inzwischen reingeschrieben hat, bleibt
-        return JsonText.ParseObject(ConfigDocument.ReadText(path, "User-Datei"), $"User-Datei {path}");
+        if (!File.Exists(path)) return (JsonText.NewObject(), null);
+        var text = ConfigDocument.ReadText(path, "User-Datei");
+        return (JsonText.ParseObject(text, $"User-Datei {path}"), text);
     }
 
-    private static void Save(ConfigDocument doc, JsonObject root)
+    private static void Save(ConfigDocument doc, JsonObject root, string? before)
     {
         var path = doc.Paths.UserFile;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var text = JsonText.Serialize(root);
+        if (!string.IsNullOrWhiteSpace(before) && before != text)
+        {
+            // letzter gültiger Stand, für "Wiederherstellen", falls die Datei später kaputtgeht (Handarbeit, halbes Schreiben der App)
+            try { AtomicFile.WriteAllText(doc.LastGoodFile, before); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log.Warn($"Sicherung {doc.LastGoodFile} nicht geschrieben: {ex.Message}"); // Speichern selbst soll daran nicht scheitern
+            }
+        }
         AtomicFile.WriteAllText(path, text);
         Written?.Invoke(path, text);
     }

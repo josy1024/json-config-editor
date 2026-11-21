@@ -19,12 +19,21 @@ public sealed class FieldViewModel : ObservableObject
     private bool _isVisible = true;
     private bool _pending;
 
+    // Speichern ging schief (Datei gesperrt …): Wert merken und später nochmal versuchen, statt ihn still zu verlieren
+    private const int MaxRetries = 20;
+    private readonly DispatcherTimer _retryTimer;
+    private bool _hasUnsaved;
+    private JsonNode? _unsaved;
+    private int _retries;
+
     public FieldViewModel(ConfigField field, EditorViewModel owner)
     {
         Field = field;
         _owner = owner;
         _commitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _commitTimer.Tick += (_, _) => FlushPending();
+        _retryTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _retryTimer.Tick += (_, _) => { _retryTimer.Stop(); if (_hasUnsaved && !_pending) Commit(_unsaved); };
         ResetCommand = new RelayCommand(Reset, () => CanReset);
         ToggleFavoriteCommand = new RelayCommand(() => _owner.ToggleFavorite(this), () => CanToggleFavorite);
         BrowseCommand = new RelayCommand(Browse, () => CanEdit);
@@ -90,7 +99,8 @@ public sealed class FieldViewModel : ObservableObject
 
     public bool BoolValue
     {
-        get => Field.BoolValue ?? false;
+        // noch nicht gespeichert: den gewollten Wert zeigen, nicht den alten
+        get => _hasUnsaved && _unsaved is JsonValue uv && uv.TryGetValue<bool>(out var b) ? b : Field.BoolValue ?? false;
         set
         {
             if (value == BoolValue || !CanEdit) return;
@@ -184,6 +194,7 @@ public sealed class FieldViewModel : ObservableObject
     {
         _commitTimer.Stop();
         _pending = false;
+        ClearUnsaved();
         _text = FieldValidator.Format(Field, CultureInfo.CurrentCulture);
         _error = null;
         CheckPath();
@@ -193,8 +204,19 @@ public sealed class FieldViewModel : ObservableObject
     /// <summary>Von außen geändert: übernehmen, außer der User tippt gerade in genau diesem Feld.</summary>
     public void RefreshFromModel()
     {
-        if (_pending) return;
+        if (_pending || _hasUnsaved) return;
         LoadFromModel();
+    }
+
+    /// <summary>Wert eingegeben, aber noch nicht in der Datei (Speichern schlug fehl, neuer Versuch läuft).</summary>
+    public bool HasUnsaved => _hasUnsaved;
+
+    private void ClearUnsaved()
+    {
+        _retryTimer.Stop();
+        _hasUnsaved = false;
+        _unsaved = null;
+        _retries = 0;
     }
 
     internal void RefreshFavoriteState()
@@ -210,7 +232,16 @@ public sealed class FieldViewModel : ObservableObject
     public void FlushPending()
     {
         _commitTimer.Stop();
-        if (!_pending) return;
+        if (!_pending)
+        {
+            // Feld verlassen, Enter, Fenster zu: ausstehenden Wert sofort nochmal versuchen
+            if (_hasUnsaved)
+            {
+                _retryTimer.Stop();
+                Commit(_unsaved);
+            }
+            return;
+        }
         _pending = false;
         if (!FieldValidator.TryParse(Field, _text, CultureInfo.CurrentCulture, out var value, out var err))
         {
@@ -226,13 +257,33 @@ public sealed class FieldViewModel : ObservableObject
         try
         {
             ConfigWriter.Set(_owner.Document, Key, value);
+            ClearUnsaved();
             Error = null;
             _owner.OnFieldSaved(this);
         }
-        catch (Exception ex) when (ex is ConfigEditorException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is InvalidOperationException)
         {
+            // gesperrt, read-only, Liste: wird auch beim nächsten Versuch nichts
+            ClearUnsaved();
             Error = "Nicht gespeichert: " + ex.Message;
             Log.Warn($"{Key} nicht gespeichert ({_owner.Document.Paths.UserFile}): {ex.Message}");
+        }
+        catch (Exception ex) when (ex is ConfigEditorException or IOException or UnauthorizedAccessException)
+        {
+            // Datei gerade gesperrt oder halb geschrieben: merken und gleich nochmal
+            if (!_hasUnsaved) Log.Warn($"{Key} nicht gespeichert ({_owner.Document.Paths.UserFile}), versuche es weiter: {ex.Message}");
+            _hasUnsaved = true;
+            _unsaved = value?.DeepClone();
+            if (++_retries < MaxRetries)
+            {
+                Error = "Noch nicht gespeichert, neuer Versuch läuft: " + ex.Message;
+                _retryTimer.Start();
+            }
+            else
+            {
+                Error = "Nicht gespeichert: " + ex.Message + " – Feld verlassen oder Enter versucht es nochmal.";
+                _retries = 0;
+            }
         }
         CheckPath();
         RaiseState();

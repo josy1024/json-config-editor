@@ -120,6 +120,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         OpenUserFileCommand = new RelayCommand(OpenUserFile);
         OpenUserFolderCommand = new RelayCommand(OpenUserFolder);
         BackupBrokenCommand = new RelayCommand(BackupBroken);
+        RestoreLastGoodCommand = new RelayCommand(RestoreLastGood, () => CanRestoreLastGood);
         ReloadCommand = new RelayCommand(ReloadFromDisk);
         ClearSearchCommand = new RelayCommand(() => SearchText = "");
 
@@ -237,6 +238,15 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
 
     public string? UserFileError => Document?.UserFileError;
     public bool HasUserFileError => UserFileError != null;
+
+    /// <summary>Kaputte Datei und gültiger letzter Stand (.bak) da: zurückholen statt bei null anfangen.</summary>
+    public bool CanRestoreLastGood => HasUserFileError && !IsReadOnly && LastGoodTime != null;
+    private DateTime? LastGoodTime => Document != null ? ConfigWriter.LastGoodTime(Document) : null;
+    public string RestoreLastGoodLabel => LastGoodTime is { } t ? $"Letzten guten Stand wiederherstellen ({t:dd.MM. HH:mm})" : "Letzten guten Stand wiederherstellen";
+    public ICommand RestoreLastGoodCommand { get; }
+
+    /// <summary>Felder, deren Wert noch nicht in der Datei ist (Speichern schlug fehl).</summary>
+    public IReadOnlyList<FieldViewModel> UnsavedFields => _all.Where(f => f.HasUnsaved).ToList();
     public string? RootHint => Document?.RootHint;
     public bool HasRootHint => !string.IsNullOrWhiteSpace(RootHint);
 
@@ -547,10 +557,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
             foreach (var f in _all) f.RefreshFromModel();
             RefreshFavoriteViews();
             _lastWritten = text;
-            OnPropertyChanged(nameof(UserFileError));
-            OnPropertyChanged(nameof(HasUserFileError));
-            OnPropertyChanged(nameof(ChangedCount));
-            OnPropertyChanged(nameof(ChangedLabel));
+            RaiseUserFileState();
             if (Document.UserFileError != null) return;
             Info(hadError
                 ? "Datei ist wieder in Ordnung, neu geladen."
@@ -611,10 +618,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         {
             var backup = ConfigWriter.BackupBrokenUserFile(Document);
             foreach (var f in _all) f.LoadFromModel();
-            OnPropertyChanged(nameof(UserFileError));
-            OnPropertyChanged(nameof(HasUserFileError));
-            OnPropertyChanged(nameof(ChangedCount));
-            OnPropertyChanged(nameof(ChangedLabel));
+            RaiseUserFileState();
             RefreshFavoriteViews();
             Info($"Sicherung angelegt: {Path.GetFileName(backup)}. Du startest mit den Standardwerten.");
         }
@@ -622,6 +626,32 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         {
             Info("Sicherung fehlgeschlagen: " + ex.Message);
         }
+    }
+
+    private void RestoreLastGood()
+    {
+        try
+        {
+            var broken = ConfigWriter.RestoreLastGood(Document);
+            foreach (var f in _all) f.LoadFromModel();
+            RaiseUserFileState();
+            RefreshFavoriteViews();
+            Info("Letzter guter Stand ist zurück" + (broken != null ? $", die kaputte Fassung liegt als {Path.GetFileName(broken)} daneben." : "."));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ConfigEditorException or InvalidOperationException)
+        {
+            Info("Wiederherstellen fehlgeschlagen: " + ex.Message);
+        }
+    }
+
+    private void RaiseUserFileState()
+    {
+        OnPropertyChanged(nameof(UserFileError));
+        OnPropertyChanged(nameof(HasUserFileError));
+        OnPropertyChanged(nameof(CanRestoreLastGood));
+        OnPropertyChanged(nameof(RestoreLastGoodLabel));
+        OnPropertyChanged(nameof(ChangedCount));
+        OnPropertyChanged(nameof(ChangedLabel));
     }
 
     /// <summary>Offene Eingaben sofort speichern (Fenster schließt).</summary>

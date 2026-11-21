@@ -76,6 +76,12 @@ Die Liste kommt aus `apps.json`-Dateien und den zuletzt geöffneten Apps:
 
 * Kann die User-Datei nicht geschrieben werden (Ordner gesperrt, Datei schreibgeschützt), öffnet der Editor **nur zur Ansicht** und sagt warum.
 * Dateien über 5 MB, Binärdateien, Ordner statt Datei, ungültige Zeichen im Pfad: klare Meldung statt Absturz.
+* **Kaputte User-Datei** (von Hand vertippt, halb geschrieben): Der Editor zeigt einen roten Hinweis und speichert nichts. Vor jedem Speichern legt er den letzten gültigen Stand als `appsettings.local.json.bak` daneben. Mit "Letzten guten Stand wiederherstellen" kommt der zurück, die kaputte Fassung bleibt als `.kaputt-<Datum>` liegen. Ohne `.bak` bleibt "Sicherung anlegen und neu beginnen" (dann gelten die Standardwerte).
+* **Datei gerade gesperrt** (Virenscanner, die App schreibt): Der Wert bleibt im Feld stehen, der Editor versucht es alle 3 Sekunden nochmal ("Noch nicht gespeichert …"). Beim Schließen fragt er, wenn noch etwas offen ist.
+* **ANSI statt UTF-8**: Eine User-Datei aus einem alten Editor wird mit richtigen Umlauten gelesen und beim nächsten Speichern als UTF-8 geschrieben. Ist die `appsettings.json` der App nicht UTF-8, kommt ein Hinweis (die App selbst liest sonst falsche Umlaute).
+* **Fehler im Descriptor**: Ein falscher Typ (`"min": "5"`, `"fields": []` …) kostet nur diesen Eintrag, der Editor geht trotzdem auf und zeigt einen Hinweis. Nur kaputtes JSON (Syntax) verhindert das Öffnen. `--validate` meldet beides als Fehler.
+* Kommentare in der User-Datei gehen beim Speichern verloren (die Fassung davor liegt als `.bak` daneben). Beschreibungen gehören in die `appsettings.json` oder den Descriptor.
+* Speichern ist atomar und auf die Platte gezwungen: nach Absturz oder Stromausfall liegt die alte oder die neue Fassung da, nie eine halbe. Übrig gebliebene `*.tmp` älter als 1 Tag räumt der Editor beim Öffnen weg.
 * Log: `%LOCALAPPDATA%\JsonConfigEditor\logs`, 7 Tage. Enthält Pfade und Keys, keine Werte.
 
 PowerShell wartet bei GUI-Programmen nicht auf den Exit-Code. Für `--validate` deshalb pipen:

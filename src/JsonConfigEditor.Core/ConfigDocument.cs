@@ -73,13 +73,14 @@ public sealed partial class ConfigDocument
         public string? FavoritesWarning;
     }
 
-    private sealed record Layers(Layer Base, Layer Machine, Layer Locked, Layer User, Dictionary<string, string> Comments);
+    private sealed record Layers(Layer Base, Layer Machine, Layer Locked, Layer User, Dictionary<string, string> Comments, List<string> Notes);
 
     private Layers ReadLayers()
     {
         if (!File.Exists(Paths.BaseFile))
             throw new ConfigEditorException($"Basisdatei nicht gefunden: {Paths.BaseFile}", ExitCodes.BrokenFile);
-        var baseText = ReadText(Paths.BaseFile, "Basisdatei");
+        var notes = new List<string>();
+        var baseText = ReadText(Paths.BaseFile, "Basisdatei", notes);
         var baseObj = JsonText.ParseObject(baseText, $"Basisdatei {Paths.BaseFile}");
         var comments = CommentScanner.Scan(baseText);
 
@@ -90,7 +91,7 @@ public sealed partial class ConfigDocument
         {
             try
             {
-                var m = JsonText.ParseObject(ReadText(Paths.MachineFile, "Machine-Datei"),$"Machine-Datei {Paths.MachineFile}");
+                var m = JsonText.ParseObject(ReadText(Paths.MachineFile, "Machine-Datei", notes), $"Machine-Datei {Paths.MachineFile}");
                 if (m["Locked"] is JsonObject l) Flatten(l, "", locked);
                 Flatten(m, "", machine, skipTopLevel: "Locked");
             }
@@ -106,7 +107,7 @@ public sealed partial class ConfigDocument
         {
             try
             {
-                var userRoot = JsonText.ParseObject(ReadText(Paths.UserFile, "User-Datei"), $"User-Datei {Paths.UserFile}");
+                var userRoot = JsonText.ParseObject(ReadText(Paths.UserFile, "User-Datei", notes), $"User-Datei {Paths.UserFile}");
                 ReadUserFavorites(userRoot, user);
                 Flatten(userRoot, "", user);
             }
@@ -118,7 +119,7 @@ public sealed partial class ConfigDocument
 
         var b = new Layer();
         Flatten(baseObj, "", b);
-        return new Layers(b, machine, locked, user, comments);
+        return new Layers(b, machine, locked, user, comments, notes);
     }
 
     private static void ReadUserFavorites(JsonObject root, Layer user)
@@ -157,6 +158,8 @@ public sealed partial class ConfigDocument
         var layers = ReadLayers();
         var d = Descriptor;
         if (layers.User.FavoritesWarning is { } favoritesWarning) _warnings.Add(favoritesWarning);
+        _warnings.AddRange(layers.Notes);
+        if (d != null) _warnings.AddRange(d.Warnings);
 
         Title = d?.App?.Title ?? (Paths.AppName != null ? $"{Paths.AppName} Einstellungen" : "Einstellungen");
         if (MachineFileError != null) _warnings.Add($"Machine-Datei wird ignoriert: {MachineFileError}");
@@ -442,6 +445,19 @@ public sealed partial class ConfigDocument
 
     internal static string ReadText(string path, string what = "Datei") => SafeFile.ReadText(path, what);
 
+    private static string ReadText(string path, string what, List<string> notes)
+    {
+        var text = SafeFile.ReadText(path, what, out var wasAnsi);
+        if (wasAnsi)
+        {
+            notes.Add(what == "User-Datei"
+                ? $"{what} war nicht UTF-8 (ANSI/Windows-1252), Umlaute wurden richtig gelesen. Beim nächsten Speichern wird sie als UTF-8 geschrieben."
+                : $"{what} ist nicht UTF-8 (ANSI/Windows-1252): {path}. Die App liest sie evtl. mit falschen Umlauten, bitte als UTF-8 speichern.");
+            Log.Warn($"{what} nicht UTF-8: {path}");
+        }
+        return text;
+    }
+
     /// <summary>
     /// Prüft, ob die User-Datei geschrieben werden kann. Wenn nicht: <see cref="WriteBlockedReason"/> gesetzt,
     /// Dokument ist dann read-only. Nicht in <see cref="Load"/>, weil es den Ordner anlegt (bei --validate unerwünscht).
@@ -449,5 +465,9 @@ public sealed partial class ConfigDocument
     public void CheckWritable()
     {
         WriteBlockedReason = Options.ReadOnly ? null : SafeFile.CheckWritable(Paths.UserFile);
+        if (!ReadOnly) AtomicFile.CleanupStale(Paths.UserFile);
     }
+
+    /// <summary>Letzter gültiger Stand der User-Datei, den der Editor vor seinem letzten Speichern weggelegt hat.</summary>
+    public string LastGoodFile => Paths.UserFile + ".bak";
 }

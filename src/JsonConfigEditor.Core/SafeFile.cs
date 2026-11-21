@@ -14,8 +14,17 @@ public static class SafeFile
     private static readonly char[] InvalidChars = [.. Path.GetInvalidPathChars(), '<', '>', '"', '|', '?', '*'];
 
     /// <summary>Text lesen, auch wenn die App die Datei gerade offen hat. Wirft <see cref="ConfigEditorException"/>.</summary>
-    public static string ReadText(string path, string what, int exitCode = ExitCodes.BrokenFile)
+    public static string ReadText(string path, string what, int exitCode = ExitCodes.BrokenFile) =>
+        ReadText(path, what, out _, exitCode);
+
+    /// <summary>
+    /// Wie <see cref="ReadText(string, string, int)"/>. <paramref name="wasAnsi"/> = Datei war kein gültiges UTF-8
+    /// und wurde als Windows-1252 gelesen (alter Editor, "ANSI" gespeichert). Sonst würde aus "Ä" ein "�",
+    /// und das landete beim nächsten Speichern dauerhaft in der Datei.
+    /// </summary>
+    public static string ReadText(string path, string what, out bool wasAnsi, int exitCode = ExitCodes.BrokenFile)
     {
+        wasAnsi = false;
         try
         {
             if (Directory.Exists(path))
@@ -32,9 +41,14 @@ public static class SafeFile
                 try
                 {
                     // ReadWrite|Delete: die App darf die Datei gleichzeitig offen haben oder ersetzen
-                    using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                    using var reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-                    var text = reader.ReadToEnd();
+                    byte[] bytes;
+                    using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                    using (var ms = new MemoryStream())
+                    {
+                        fs.CopyTo(ms);
+                        bytes = ms.ToArray();
+                    }
+                    var text = Decode(bytes, out wasAnsi);
                     if (text.Contains('\0'))
                         throw new ConfigEditorException($"{what} {path} ist keine Textdatei.", exitCode);
                     return text;
@@ -49,6 +63,38 @@ public static class SafeFile
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.Security.SecurityException)
         {
             throw new ConfigEditorException($"{what} {path} nicht lesbar: {ex.Message}", exitCode, ex);
+        }
+    }
+
+    private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+    private static readonly Lazy<Encoding> Ansi = new(() =>
+    {
+        try
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            return Encoding.GetEncoding(1252);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        {
+            return Encoding.Latin1; // Umlaute sind in beiden gleich
+        }
+    });
+
+    /// <summary>BOM beachten (UTF-8, UTF-16), sonst UTF-8 streng, bei ungültigen Bytes Windows-1252.</summary>
+    internal static string Decode(byte[] bytes, out bool wasAnsi)
+    {
+        wasAnsi = false;
+        if (bytes is [0xFF, 0xFE, ..]) return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
+        if (bytes is [0xFE, 0xFF, ..]) return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+        var offset = bytes is [0xEF, 0xBB, 0xBF, ..] ? 3 : 0;
+        try
+        {
+            return StrictUtf8.GetString(bytes, offset, bytes.Length - offset);
+        }
+        catch (DecoderFallbackException)
+        {
+            wasAnsi = true;
+            return Ansi.Value.GetString(bytes, offset, bytes.Length - offset);
         }
     }
 

@@ -20,11 +20,27 @@ public sealed class ConfigEditorWindow : Window
         MinHeight = 420;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         View.Saved += (s, e) => Saved?.Invoke(this, e);
-        Closing += (_, _) => View.ViewModel.FlushAll();
+        Closing += OnClosing;
         Closed += (_, _) => View.Dispose();
     }
 
     public ConfigEditorView View { get; }
+
+    private void OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        var vm = View.ViewModel;
+        vm.FlushAll(); // versucht auch nicht gespeicherte Werte nochmal
+        var unsaved = vm.UnsavedFields;
+        if (unsaved.Count == 0) return;
+
+        var names = string.Join(Environment.NewLine, unsaved.Take(5).Select(f => "• " + f.Label));
+        var answer = MessageBox.Show(this,
+            $"Diese Werte sind noch nicht gespeichert, die Datei ist gerade gesperrt:{Environment.NewLine}{names}{Environment.NewLine}{Environment.NewLine}"
+            + "Trotzdem schließen? Dann gehen sie verloren.",
+            Title, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
+        if (answer == MessageBoxResult.No) e.Cancel = true;
+        else Log.Warn($"Geschlossen mit {unsaved.Count} nicht gespeicherten Werten: {string.Join(", ", unsaved.Select(f => f.Key))}");
+    }
 
     /// <summary>Nach jedem gespeicherten Wert.</summary>
     public event EventHandler<SavedEventArgs>? Saved;

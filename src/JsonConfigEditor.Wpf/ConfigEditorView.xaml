@@ -406,6 +406,9 @@
                                            FontWeight="SemiBold" TextWrapping="Wrap" />
                                 <TextBlock Text="{Binding UserFileError}" TextWrapping="Wrap" Margin="0,4,0,8" Style="{StaticResource SecondaryText}" />
                                 <StackPanel Orientation="Horizontal">
+                                    <Button Content="{Binding RestoreLastGoodLabel}" Command="{Binding RestoreLastGoodCommand}" Padding="12,4" Margin="0,0,8,0"
+                                            Style="{DynamicResource AccentButtonStyle}"
+                                            Visibility="{Binding CanRestoreLastGood, Converter={StaticResource BoolToVis}}" />
                                     <Button Content="Im Texteditor öffnen" Command="{Binding OpenUserFileCommand}" Padding="12,4" Margin="0,0,8,0" />
                                     <Button Content="Sicherung anlegen und neu beginnen" Command="{Binding BackupBrokenCommand}" Padding="12,4" />
                                 </StackPanel>
