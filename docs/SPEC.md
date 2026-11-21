@@ -57,6 +57,7 @@ Gesperrte Werte: Steht in der Machine-Datei ein Abschnitt `"Locked"`, gelten die
 * `Output:HistoryCount` = IT-Vorgabe: User darf's ändern, der Editor zeigt "IT-Vorgabe".
 * `Output:RootPath` = gesperrt: Feld read-only, Schreiben in die User-Datei unmöglich.
 * Wichtig: Der Editor zeigt die Sperre nur an. Die App muss `Locked` beim Laden selbst als letzte Ebene drüberlegen, sonst kann jemand die User-Datei von Hand ändern.
+* **Listen**: `IConfiguration` führt JSON-Arrays über die Ebenen **nach Index** zusammen (Basis `["a","b","c"]` + User `["x"]` = `["x","b","c"]`). Der Editor bearbeitet Arrays deshalb nicht selbst (Knopf "Im Texteditor öffnen"). Empfehlung an App-Entwickler: Listen, die ein User ganz ersetzen soll, als Komma-getrennten String ablegen und in der App aufteilen. In PraxisRecorder so umgesetzt (`Text:FillerWords`).
 
 Pro Feld zeigt der Editor:
 

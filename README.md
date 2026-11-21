@@ -4,7 +4,7 @@
 
 Einstellungen in `appsettings.json` übersichtlich bearbeiten, ohne JSON anzufassen. Schalter als Schalter, Zahlen als Zahlen, Pfade mit Durchsuchen und Prüfung. Geschrieben wird nur eine User-Datei unter `%APPDATA%`, und nur das, was vom Standard abweicht. Updates der App überschreiben also nie die Einstellungen des Users.
 
-Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](docs/SPEC.md).
+Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](docs/SPEC.md), Änderungen: [CHANGELOG.md](CHANGELOG.md).
 
 ## Was es kann
 
@@ -13,6 +13,7 @@ Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](
 * **Auto-Erkennung**: `//`-Kommentare in der `appsettings.json` werden zu Beschreibungen, Pfade werden am Key oder Wert erkannt.
 * **Descriptor** `appsettings.editor.json` (optional): Labels, Favoriten oben, Einheiten, Grenzen, read-only, versteckt, erweitert, Neustart-Hinweis, Pfadprüfung inkl. OneDrive-Warnung.
 * **Sofort speichern**, atomar. Unbekannte Keys, `_hinweis`-Metadaten und Listen in der User-Datei bleiben erhalten.
+* **Eigene Favoriten**: Stern ☆ an jedem Feld. Gespeichert in der User-Datei unter `_jsonConfigEditor.favorites`, also pro User. Solange der User keine eigenen hat, gelten die Favoriten aus dem Descriptor; eine leere eigene Liste blendet auch die Descriptor-Favoriten aus.
 * Suche mit dynamischer Trefferzahl, Filter pro Abschnitt sowie "Alle", "Geändert" und "Favoriten"-Ansicht; Abschnitte ohne sichtbare Treffer werden ausgeblendet. Strg+F öffnet die Suche.
 * **F3**: Debug-Infos mit Aufruf (Kommandozeile), Version, .NET, welche JSON-Dateien benutzt werden (mit Größe und Datum), IT-Sperren, Warnungen, Log-Pfad und Inhalt der User-Datei. "Kopieren" für Tickets, Esc schließt. Die Versionszeile links unten führt zum [GitHub-Projekt](https://github.com/josy1024/json-config-editor).
 * Pfadfelder: 📂 öffnet den Ordner im Explorer (bei Dateien mit markierter Datei, fehlt der Ordner: der nächste vorhandene darüber), ⋯ durchsucht. Rechtsklick: Ordner öffnen, Durchsuchen, Pfad kopieren. Geht auch bei gesperrten Feldern.
@@ -46,7 +47,17 @@ JsonConfigEditor.exe --base "C:\Program Files\MeineApp\appsettings.json" --app M
 | `--list` | bekannte Apps ausgeben |
 | `--version`, `--help` | |
 
-Exit-Codes: `0` OK, `1` unerwarteter Fehler, `2` Datei kaputt, `3` Parameterfehler, `4` Validierung fehlgeschlagen. Pro User-Datei läuft nur ein Fenster, ein zweiter Aufruf holt es nach vorne. Reagiert das offene Fenster nicht (hängt), sagt der zweite Aufruf das nach ca. 3 Sekunden (Exit `1`), statt sich still zu beenden.
+Pro User-Datei läuft nur ein Fenster, ein zweiter Aufruf holt es nach vorne. Reagiert das offene Fenster nicht (hängt), sagt der zweite Aufruf das nach ca. 3 Sekunden (Exit `1`), statt sich still zu beenden.
+
+### Exit-Codes
+
+| Code | Bedeutung | Typische Ursache | Was tun |
+|---|---|---|---|
+| `0` | OK | | |
+| `1` | unerwarteter Fehler | Absturz; offener Editor für dieselbe Datei reagiert nicht | Log ansehen (`%LOCALAPPDATA%\JsonConfigEditor\logs`); hängenden `JsonConfigEditor` im Task-Manager beenden |
+| `2` | Datei kaputt | Basis- oder User-Datei kein gültiges JSON, Key doppelt (Groß-/Kleinschreibung zählt nicht), Datei über 5 MB, Binärdatei | Zeile und Position stehen in der Meldung; User-Datei: im Editor "Letzten guten Stand wiederherstellen" |
+| `3` | Parameterfehler | Pfad falsch oder mit ungültigen Zeichen, Descriptor nicht gefunden, User-Datei unbekannt (`--app` fehlt), User = Basis | Aufruf bzw. `app`-Block im Descriptor prüfen, `--help` |
+| `4` | Validierung fehlgeschlagen (`--validate`) | Wert außerhalb `min`/`max`, falscher Typ, Hinweis zum Descriptor (unbekanntes Feld, falscher Typ eines Attributs), Datei nicht UTF-8 | jede Zeile der Ausgabe ist ein Problem |
 
 ### Ohne Parameter (Doppelklick)
 
@@ -71,6 +82,26 @@ Die Liste kommt aus `apps.json`-Dateien und den zuletzt geöffneten Apps:
 ```
 
 `descriptor` oder `base`, optional `user`, `machine`. Relative Pfade gelten ab dem Ordner der `apps.json`. Fehlt eine Datei, bleibt der Eintrag ausgegraut sichtbar.
+
+### Für die IT: Vorgaben und Sperren
+
+`%ProgramData%\<App>\appsettings.json` (bzw. `app.machineFile` im Descriptor) gilt für alle User am Rechner, per GPO, Intune oder Softwareverteilung verteilen:
+
+```json
+{
+  // Vorgabe: gilt für alle, jeder User darf sie im Editor ändern
+  "Output": { "HistoryCount": 20 },
+  // gesperrt: gilt über allem, im Editor 🔒 und nicht änderbar
+  "Locked": {
+    "Output": { "RootPath": "D:\\Aufnahmen" },
+    "Tools": { "AllowDownload": false }
+  }
+}
+```
+
+* Unter `Locked` dieselbe Struktur wie in der `appsettings.json` der App.
+* Der Editor zeigt die Sperre nur an und schreibt gesperrte Keys nie. Durchsetzen muss sie die App selbst (siehe [In eigene App einbinden](#in-eigene-app-einbinden)).
+* Ist die Machine-Datei kaputt, ignoriert der Editor sie mit Hinweis und öffnet trotzdem. `--validate` meldet das.
 
 ### Wenn etwas nicht passt
 
@@ -139,6 +170,17 @@ w.Saved += (_, e) => { /* e.ChangedKeys, e.RestartRequired */ };
 ```
 
 Wichtig für die App: `Locked` aus der Machine-Datei beim Laden als **letzte** Ebene drüberlegen, sonst kann man die Sperre in der User-Datei von Hand aushebeln.
+
+```csharp
+var cfg = new ConfigurationBuilder()
+    .AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json"))
+    .AddJsonFile(machineFile, optional: true, reloadOnChange: true)
+    .AddJsonFile(userFile, optional: true, reloadOnChange: true);
+var locked = new ConfigurationBuilder().AddJsonFile(machineFile, optional: true).Build().GetSection("Locked");
+cfg.AddInMemoryCollection(locked.AsEnumerable(makePathsRelative: true).Where(kv => kv.Value != null));
+```
+
+Listen (JSON-Arrays) führt `IConfiguration` **nach Index** zusammen: Hat die Basis `["a", "b", "c"]` und die User-Datei `["x"]`, kommt `["x", "b", "c"]` heraus. Für Listen, die der User ersetzen soll, deshalb lieber einen Komma-getrennten String nehmen (`"um, äh, ähm"`), den die App selbst aufteilt.
 
 ## Bauen
 
