@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>JsonConfigEditor</AssemblyName>
+    <RootNamespace>JsonConfigEditor.App</RootNamespace>
+    <StartupObject>JsonConfigEditor.App.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+    <!-- LibraryImport (AttachConsole) erzeugt unsafe-Code -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- framework-dependent: braucht die .NET 10 Desktop Runtime, dafür ist das Zip klein -->
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="System.IO" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\JsonConfigEditor.Core\JsonConfigEditor.Core.csproj" />
+    <ProjectReference Include="..\JsonConfigEditor.Wpf\JsonConfigEditor.Wpf.csproj" />
+  </ItemGroup>
+</Project>

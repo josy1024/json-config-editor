@@ -1,6 +1,6 @@
 # json-config-editor – Spec
 
-Stand 21.11.2026. Nur Planung, noch nix gebaut. 🗺️
+Stand 21.11.2026. v0.1.0 gebaut: alles aus Abschnitt 1 bis 12, Abschnitt 13 (Später) noch offen. Bedienung siehe [README](../README.md).
 
 Kernfrage: Wie macht man eine `appsettings.json` für normale Anwender übersichtlich editierbar, ohne dass sie JSON anfassen müssen und ohne dass ein Update ihre Einstellungen überschreibt?
 

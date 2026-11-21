@@ -1,0 +1,86 @@
+# Release bauen: Tag pushen, Rest macht GitHub.
+#   git tag v0.1.0
+#   git push origin v0.1.0
+# Ergebnis: Release "v0.1.0" mit
+#   JsonConfigEditor-0.1.0-win-x64.zip  (framework-dependent, braucht .NET 10 Desktop Runtime)
+#   SHA256SUMS.txt                      (Apps prüfen damit den Download)
+# Asset-Namen bitte nicht ändern: Apps bauen die URL aus der Version zusammen.
+# Ohne Tag (Actions > Run workflow) wird nur gebaut und das Zip als Artefakt abgelegt.
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Version aus Tag
+        id: ver
+        shell: pwsh
+        run: |
+          $v = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { "0.0.0-dev.$env:GITHUB_RUN_NUMBER" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Tests
+        run: dotnet test tests/JsonConfigEditor.Tests -c Release
+
+      - name: Publish (framework-dependent win-x64)
+        run: >
+          dotnet publish src/JsonConfigEditor.App -c Release -r win-x64 --self-contained false
+          -p:Version=${{ steps.ver.outputs.version }}
+          -o publish/JsonConfigEditor
+
+      - name: Selbsttest
+        shell: pwsh
+        run: |
+          $out = & publish/JsonConfigEditor/JsonConfigEditor.exe samples/praxisrecorder/appsettings.editor.json --user "$env:RUNNER_TEMP\u.json" --validate | Out-String
+          if ($LASTEXITCODE -ne 0) { throw "Selbsttest fehlgeschlagen ($LASTEXITCODE): $out" }
+
+      - name: Zip + SHA256
+        shell: pwsh
+        run: |
+          Copy-Item README.md, LICENSE publish/JsonConfigEditor/
+          $zip = "JsonConfigEditor-${{ steps.ver.outputs.version }}-win-x64.zip"
+          Compress-Archive -Path publish/JsonConfigEditor/* -DestinationPath $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $zip" | Set-Content SHA256SUMS.txt -Encoding ascii
+          "ZIP=$zip" >> $env:GITHUB_ENV
+          Get-Content SHA256SUMS.txt
+
+      - name: Artefakt
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ZIP }}
+          path: |
+            ${{ env.ZIP }}
+            SHA256SUMS.txt
+
+      - name: Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.ZIP }}
+            SHA256SUMS.txt
+          generate_release_notes: true
+          body: |
+            Entpacken, `JsonConfigEditor.exe "<pfad>\appsettings.editor.json"` starten.
+            Braucht die .NET 10 Desktop Runtime (https://dotnet.microsoft.com/download/dotnet/10.0).
+            SHA256 steht in `SHA256SUMS.txt`.
+            Noch nicht signiert: Windows SmartScreen meldet "unbekannter Herausgeber" → "Weitere Informationen" → "Trotzdem ausführen".

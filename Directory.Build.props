@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- erlaubt Build der WPF-Projekte auch auf CI/Linux -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <Version>0.1.0</Version>
+    <Product>json-config-editor</Product>
+    <Authors>josy1024</Authors>
+    <Copyright>Copyright (c) 2026 josy1024</Copyright>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/josy1024/json-config-editor</RepositoryUrl>
+  </PropertyGroup>
+</Project>
