@@ -6,6 +6,8 @@ Einstellungen in `appsettings.json` übersichtlich bearbeiten, ohne JSON anzufas
 
 Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](docs/SPEC.md), Änderungen: [CHANGELOG.md](CHANGELOG.md).
 
+![json-config-editor mit der Beispiel-App aus samples/testapp: Abschnitte links, Filter oben, Felder als Karten mit Favoritenstern, Pfadfeld mit Prüfung](docs/Screenshot.png)
+
 ## Was es kann
 
 * **Drei Ebenen**: Werks-Defaults (`appsettings.json` neben der App) < IT-Vorgaben (`%ProgramData%\<App>\appsettings.json`) < eigene Werte (`%APPDATA%\<App>\appsettings.local.json`). Was die IT unter `"Locked"` einträgt, ist gesperrt 🔒.
