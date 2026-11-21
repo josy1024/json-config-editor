@@ -179,7 +179,51 @@
                 <Button Content="Andere Einstellungen öffnen…" Command="{Binding OpenOtherCommand}" HorizontalAlignment="Left"
                         Padding="14,5" Margin="0,16,0,0"
                         Visibility="{Binding CanOpenOther, Converter={StaticResource BoolToVis}}" />
+                <TextBlock Text="F3 zeigt Aufruf und Pfade." Style="{StaticResource SecondaryText}" Margin="0,16,0,0" />
             </StackPanel>
+        </Border>
+
+        <!-- ============================== F3: Debug-Infos ============================== -->
+        <Border Panel.ZIndex="20" HorizontalAlignment="Right" VerticalAlignment="Stretch" MaxWidth="760" Margin="160,12,12,12"
+                CornerRadius="8" BorderThickness="1" Padding="14,10"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                Visibility="{Binding ShowDebug, Converter={StaticResource BoolToVis}}">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="18" ShadowDepth="2" Opacity="0.25" />
+            </Border.Effect>
+            <DockPanel>
+                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Command="{Binding CopyDebugCommand}" Padding="10,3" Margin="0,0,6,0" ToolTip="Alles in die Zwischenablage (für ein Ticket)">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE8C8;" FontSize="12" Margin="0,0,6,0" />
+                                <TextBlock Text="Kopieren" FontSize="12.5" />
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{Binding OpenLogCommand}" Padding="10,3" Margin="0,0,6,0" ToolTip="Tageslog öffnen">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE9F9;" FontSize="12" Margin="0,0,6,0" />
+                                <TextBlock Text="Log" FontSize="12.5" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource IconButton}" Command="{Binding ToggleDebugCommand}" ToolTip="Schließen (F3, Esc)"
+                                AutomationProperties.Name="Debug-Infos schließen">
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="12" />
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xEBE8;" Margin="0,0,8,0" />
+                        <TextBlock Text="Debug-Infos" FontWeight="SemiBold" />
+                        <TextBlock Text="F3" Margin="8,0,0,0" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
+                </DockPanel>
+                <TextBox Text="{Binding DebugText, Mode=OneWay}" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                         TextWrapping="Wrap" AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                         AutomationProperties.Name="Debug-Infos" />
+            </DockPanel>
         </Border>
 
         <Grid Visibility="{Binding HasLoadError, Converter={StaticResource BoolToVis}, ConverterParameter=!}">
@@ -234,8 +278,13 @@
                             <TextBlock Text="Andere App öffnen…" FontSize="12.5" />
                         </StackPanel>
                     </Button>
-                    <TextBlock Text="{Binding Version, StringFormat=json-config-editor {0}}" Margin="0,8,0,0"
-                               FontSize="11.5" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    <TextBlock Margin="0,8,0,0" FontSize="11.5">
+                        <Hyperlink Command="{Binding OpenRepoCommand}" TextDecorations="None"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   ToolTip="{Binding VersionTooltip}">
+                            <Run Text="{Binding VersionText, Mode=OneWay}" />
+                        </Hyperlink>
+                    </TextBlock>
                 </StackPanel>
             </Grid>
 

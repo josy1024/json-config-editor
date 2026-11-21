@@ -12,6 +12,7 @@ Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](
 * **Descriptor** `appsettings.editor.json` (optional): Labels, Favoriten oben, Einheiten, Grenzen, read-only, versteckt, erweitert, Neustart-Hinweis, Pfadprüfung inkl. OneDrive-Warnung.
 * **Sofort speichern**, atomar. Unbekannte Keys, `_hinweis`-Metadaten und Listen in der User-Datei bleiben erhalten.
 * Suche, Filter pro Abschnitt, "Geändert"-Ansicht, Strg+F.
+* **F3**: Debug-Infos mit Aufruf (Kommandozeile), Version, .NET, welche JSON-Dateien benutzt werden (mit Größe und Datum), IT-Sperren, Warnungen, Log-Pfad und Inhalt der User-Datei. "Kopieren" für Tickets, Esc schließt. Die Versionszeile links unten führt zum [GitHub-Projekt](https://github.com/josy1024/json-config-editor).
 * Pfadfelder: 📂 öffnet den Ordner im Explorer (bei Dateien mit markierter Datei, fehlt der Ordner: der nächste vorhandene darüber), ⋯ durchsucht. Rechtsklick: Ordner öffnen, Durchsuchen, Pfad kopieren. Geht auch bei gesperrten Feldern.
 * Ändert die App die Datei selbst, lädt der Editor neu.
 * Ohne Parameter: Startseite mit bekannten Apps (IT-Liste, eigene Liste, zuletzt geöffnet).

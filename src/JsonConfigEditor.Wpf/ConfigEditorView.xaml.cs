@@ -101,8 +101,19 @@ public partial class ConfigEditorView : UserControl, IDisposable
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
+        // F3 = Debug-Infos, Esc schließt sie
+        if (e.Key == Key.F3)
+        {
+            ViewModel.ShowDebug = !ViewModel.ShowDebug;
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape && ViewModel.ShowDebug)
+        {
+            ViewModel.ShowDebug = false;
+            e.Handled = true;
+        }
         // Strg+F = Suche, Esc in der Suche = leeren
-        if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+        else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
         {
             Search.Focus();
             Search.SelectAll();

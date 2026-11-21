@@ -100,6 +100,10 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         ClearSearchCommand = new RelayCommand(() => SearchText = "");
 
         OpenOtherCommand = new RelayCommand(() => OpenOtherRequested?.Invoke(this, EventArgs.Empty));
+        ToggleDebugCommand = new RelayCommand(() => ShowDebug = !ShowDebug);
+        CopyDebugCommand = new RelayCommand(CopyDebug);
+        OpenLogCommand = new RelayCommand(OpenLog, () => Log.Enabled);
+        OpenRepoCommand = new RelayCommand(() => { if (!AppInfo.OpenUrl(AppInfo.RepoUrl)) Info("Browser startet nicht: " + AppInfo.RepoUrl); });
 
         try
         {
@@ -141,7 +145,63 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public string Title => Document?.Title ?? "Einstellungen";
     public string AppName => Document?.Paths.AppName ?? "Einstellungen";
     public string UserFilePath => Document?.Paths.UserFile ?? "";
-    public string Version => typeof(EditorViewModel).Assembly.GetName().Version?.ToString(3) ?? "";
+    public string Version => AppInfo.Version;
+    public string VersionText => AppInfo.VersionText;
+    public string RepoUrl => AppInfo.RepoUrl;
+    public string VersionTooltip => $"{AppInfo.RepoUrl}  ·  F3: Debug-Infos";
+
+    // ---------------------------------------------------------------- F3 Debug
+
+    private bool _showDebug;
+    private string _debugText = "";
+
+    /// <summary>F3: Aufruf, Version, verwendete JSON-Dateien. Wird beim Öffnen frisch aufgebaut.</summary>
+    public bool ShowDebug
+    {
+        get => _showDebug;
+        set
+        {
+            if (value) DebugText = DebugInfo.Build(this);
+            Set(ref _showDebug, value);
+        }
+    }
+
+    public string DebugText
+    {
+        get => _debugText;
+        private set => Set(ref _debugText, value);
+    }
+
+    public ICommand ToggleDebugCommand { get; }
+    public ICommand CopyDebugCommand { get; }
+    public ICommand OpenLogCommand { get; }
+    public ICommand OpenRepoCommand { get; }
+
+    private void CopyDebug()
+    {
+        try
+        {
+            System.Windows.Clipboard.SetText(DebugInfo.Build(this));
+            Info("Debug-Infos in der Zwischenablage");
+        }
+        catch (System.Runtime.InteropServices.ExternalException ex) { Info("Zwischenablage gerade belegt: " + ex.Message); }
+    }
+
+    private void OpenLog()
+    {
+        var file = Log.CurrentFile;
+        try
+        {
+            if (File.Exists(file)) Process.Start(new ProcessStartInfo(file) { UseShellExecute = true });
+            else if (Directory.Exists(Log.Directory)) Process.Start(new ProcessStartInfo("explorer.exe", $"\"{Log.Directory}\"") { UseShellExecute = true });
+            else Info("Noch kein Log da: " + file);
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            try { Process.Start(new ProcessStartInfo("notepad.exe", $"\"{file}\"") { UseShellExecute = true }); }
+            catch (Exception ex2) when (ex2 is System.ComponentModel.Win32Exception or InvalidOperationException) { Info("Log nicht zu öffnen: " + ex.Message); }
+        }
+    }
 
     public ObservableCollection<SectionViewModel> Sections { get; } = [];
     public ObservableCollection<FieldViewModel> Favorites { get; } = [];

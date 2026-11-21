@@ -169,8 +169,12 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </Expander>
-                <TextBlock Text="{Binding Version, StringFormat=json-config-editor {0}}" Margin="0,8,0,0"
-                           FontSize="11.5" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                <TextBlock Margin="0,8,0,0" FontSize="11.5">
+                    <Hyperlink Command="{Binding OpenRepoCommand}" TextDecorations="None" ToolTip="{Binding RepoUrl}"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}">
+                        <Run Text="{Binding VersionText, Mode=OneWay}" />
+                    </Hyperlink>
+                </TextBlock>
             </StackPanel>
         </Grid>
     </Grid>

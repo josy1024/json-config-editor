@@ -70,7 +70,10 @@ public sealed class AppPickerViewModel : ObservableObject
     public IReadOnlyList<string> Warnings => _catalog.Warnings;
     public bool HasWarnings => Warnings.Count > 0;
     public bool IsEmpty => Entries.Count == 0;
-    public string Version => typeof(AppPickerViewModel).Assembly.GetName().Version?.ToString(3) ?? "";
+    public string Version => AppInfo.Version;
+    public string VersionText => AppInfo.VersionText;
+    public string RepoUrl => AppInfo.RepoUrl;
+    public ICommand OpenRepoCommand { get; } = new RelayCommand(() => AppInfo.OpenUrl(AppInfo.RepoUrl));
     public string UserListFile => _catalog.UserListFile;
 
     public AppEntryViewModel? Selected
