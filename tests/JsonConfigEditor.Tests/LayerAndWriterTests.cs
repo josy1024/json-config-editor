@@ -97,6 +97,37 @@ public class LayerAndWriterTests
     }
 
     [Fact]
+    public void Favoriten_werden_in_User_Datei_gespeichert_und_beim_Reload_gelesen()
+    {
+        var user = """
+            {
+              "Live": { "Model": "user.bin" },
+              "_jsonConfigEditor": { "favorites": ["Live:Enabled"], "other": "keep" },
+              "_otherAppMetadata": { "keep": true }
+            }
+            """;
+        using var t = new TempDir().WithBase(Base).WithUser(user);
+        var doc = t.Load();
+
+        Assert.Equal(["Live:Enabled"], doc.Favorites.Select(f => f.Key));
+        ConfigWriter.SetFavorites(doc, ["Live:ChunkSeconds", "Output:RootPath"]);
+
+        var saved = JsonNode.Parse(t.UserText)!.AsObject();
+        Assert.Equal("user.bin", (string)saved["Live"]!["Model"]!);
+        Assert.True((bool)saved["_otherAppMetadata"]!["keep"]!);
+        Assert.Equal(["Live:ChunkSeconds", "Output:RootPath"],
+            saved["_jsonConfigEditor"]!["favorites"]!.AsArray().Select(v => (string)v!).ToArray());
+        Assert.Equal("keep", (string)saved["_jsonConfigEditor"]!["other"]!);
+        Assert.Equal(["Live:ChunkSeconds", "Output:RootPath"], doc.Favorites.Select(f => f.Key));
+
+        Assert.False(doc.Reload());
+        Assert.Equal(["Live:ChunkSeconds", "Output:RootPath"], doc.Favorites.Select(f => f.Key));
+        t.WithUser("""{ "_jsonConfigEditor": { "favorites": [] } }""");
+        Assert.False(doc.Reload());
+        Assert.Empty(doc.Favorites);
+    }
+
+    [Fact]
     public void Reset_entfernt_Key_und_leeren_Abschnitt()
     {
         using var t = new TempDir().WithBase(Base).WithUser("""{ "Live": { "Model": "x.bin" }, "Output": { "HistoryCount": 3 } }""");
@@ -126,6 +157,7 @@ public class LayerAndWriterTests
         Assert.NotNull(doc.UserFileError);
         var before = t.UserText;
         Assert.Throws<ConfigEditorException>(() => ConfigWriter.Set(doc, "Live:Enabled", JsonValue.Create(false)));
+        Assert.Throws<ConfigEditorException>(() => ConfigWriter.SetFavorites(doc, []));
         Assert.Equal(before, t.UserText);
 
         var backup = ConfigWriter.BackupBrokenUserFile(doc);
@@ -167,6 +199,7 @@ public class LayerAndWriterTests
         o.ReadOnly = true;
         var doc = ConfigDocument.Load(o);
         Assert.Throws<InvalidOperationException>(() => ConfigWriter.Set(doc, "Live:Enabled", JsonValue.Create(false)));
+        Assert.Throws<InvalidOperationException>(() => ConfigWriter.SetFavorites(doc, ["Live:Enabled"]));
         Assert.False(File.Exists(t.User));
     }
 }

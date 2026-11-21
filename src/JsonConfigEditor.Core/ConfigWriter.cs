@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 namespace JsonConfigEditor.Core;
 
 /// <summary>
-/// Schreibt in die User-Datei, und nur das, was vom Default (Machine vor Base) abweicht.
+/// Schreibt Feldwerte, die vom Default abweichen, und persönliche Favoriten in die User-Datei.
 /// Die Datei wird jedes Mal frisch gelesen und nur an der Stelle gepatcht: unbekannte Keys,
 /// _-Metadaten, Arrays und Reihenfolge bleiben. Kommentare in der User-Datei gehen verloren.
 /// </summary>
@@ -38,6 +38,42 @@ public static class ConfigWriter
         if (JsonText.RemovePath(root, field.Key)) Save(doc, root);
         field.HasUser = false;
         field.UserValue = null;
+    }
+
+    /// <summary>Schreibt die persönlichen Favoriten als Metadaten in die User-Datei.</summary>
+    public static void SetFavorites(ConfigDocument doc, IEnumerable<string> keys)
+    {
+        if (doc.ReadOnly) throw new InvalidOperationException("Nur Ansicht: " + (doc.WriteBlockedReason ?? "--readonly"));
+        if (doc.UserFileError != null)
+            throw new ConfigEditorException($"User-Datei ist kaputt, es wird nichts geschrieben: {doc.UserFileError}", ExitCodes.BrokenFile);
+
+        var favorites = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in keys)
+        {
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("Favoriten-Keys dürfen nicht leer sein.", nameof(keys));
+            if (doc.Find(key) == null) throw new KeyNotFoundException($"Favoriten-Feld {key} gibt's nicht.");
+            if (seen.Add(key)) favorites.Add(key);
+        }
+
+        var root = ReadUser(doc);
+        JsonObject metadata;
+        if (root.TryGetPropertyValue(ConfigDocument.EditorMetadataKey, out var metadataNode))
+        {
+            metadata = metadataNode as JsonObject
+                ?? throw new InvalidOperationException($"User-Datei: {ConfigDocument.EditorMetadataKey} ist kein Objekt.");
+        }
+        else
+        {
+            metadata = JsonText.NewObject();
+            root[ConfigDocument.EditorMetadataKey] = metadata;
+        }
+
+        var array = new JsonArray();
+        foreach (var key in favorites) array.Add(JsonValue.Create(key));
+        metadata["favorites"] = array;
+        Save(doc, root);
+        doc.SetFavorites(favorites);
     }
 
     /// <summary>Kaputte User-Datei wegsichern (.kaputt-Datum) und mit leerer Datei neu beginnen.</summary>

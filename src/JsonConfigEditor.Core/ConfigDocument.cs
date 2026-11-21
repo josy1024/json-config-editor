@@ -11,6 +11,8 @@ namespace JsonConfigEditor.Core;
 /// </summary>
 public sealed partial class ConfigDocument
 {
+    internal const string EditorMetadataKey = "_jsonConfigEditor";
+
     public ConfigEditorOptions Options { get; }
     public ConfigPaths Paths { get; }
     public EditorDescriptor? Descriptor { get; }
@@ -67,6 +69,8 @@ public sealed partial class ConfigDocument
         public readonly Dictionary<string, JsonNode?> Values = new(StringComparer.OrdinalIgnoreCase);
         public readonly List<string> Order = [];
         public readonly Dictionary<string, string> Hints = new(StringComparer.OrdinalIgnoreCase);
+        public List<string>? Favorites;
+        public string? FavoritesWarning;
     }
 
     private sealed record Layers(Layer Base, Layer Machine, Layer Locked, Layer User, Dictionary<string, string> Comments);
@@ -100,7 +104,12 @@ public sealed partial class ConfigDocument
         UserFileError = null;
         if (File.Exists(Paths.UserFile))
         {
-            try { Flatten(JsonText.ParseObject(ReadText(Paths.UserFile, "User-Datei"),$"User-Datei {Paths.UserFile}"), "", user); }
+            try
+            {
+                var userRoot = JsonText.ParseObject(ReadText(Paths.UserFile, "User-Datei"), $"User-Datei {Paths.UserFile}");
+                ReadUserFavorites(userRoot, user);
+                Flatten(userRoot, "", user);
+            }
             catch (Exception ex) when (ex is ConfigEditorException or IOException or UnauthorizedAccessException)
             {
                 UserFileError = ex.Message;
@@ -112,10 +121,42 @@ public sealed partial class ConfigDocument
         return new Layers(b, machine, locked, user, comments);
     }
 
+    private static void ReadUserFavorites(JsonObject root, Layer user)
+    {
+        if (!root.TryGetPropertyValue(EditorMetadataKey, out var metadataNode)) return;
+        if (metadataNode is not JsonObject metadata)
+        {
+            user.FavoritesWarning = $"User-Datei: {EditorMetadataKey} muss ein Objekt sein; gespeicherte Favoriten werden ignoriert.";
+            return;
+        }
+        if (!metadata.TryGetPropertyValue("favorites", out var favoritesNode)) return;
+        if (favoritesNode is not JsonArray favorites)
+        {
+            user.FavoritesWarning = $"User-Datei: {EditorMetadataKey}.favorites muss eine Liste sein; gespeicherte Favoriten werden ignoriert.";
+            return;
+        }
+
+        user.Favorites = [];
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in favorites)
+        {
+            if (item is JsonValue value && value.TryGetValue<string>(out var key) &&
+                !string.IsNullOrWhiteSpace(key) && seen.Add(key))
+            {
+                user.Favorites.Add(key);
+            }
+            else
+            {
+                user.FavoritesWarning = $"User-Datei: ungültiger Eintrag in {EditorMetadataKey}.favorites wurde ignoriert.";
+            }
+        }
+    }
+
     private void Build()
     {
         var layers = ReadLayers();
         var d = Descriptor;
+        if (layers.User.FavoritesWarning is { } favoritesWarning) _warnings.Add(favoritesWarning);
 
         Title = d?.App?.Title ?? (Paths.AppName != null ? $"{Paths.AppName} Einstellungen" : "Einstellungen");
         if (MachineFileError != null) _warnings.Add($"Machine-Datei wird ignoriert: {MachineFileError}");
@@ -201,23 +242,22 @@ public sealed partial class ConfigDocument
         // Abschnitte aus dem Descriptor oder mit _hinweis, die (noch) keine Felder haben, braucht keiner
         _sections.AddRange(sections.Values.OrderBy(s => s.Order).ThenBy(s => s.Label, StringComparer.CurrentCultureIgnoreCase));
 
+        var favoriteKeys = layers.User.Favorites ?? d?.Favorites ?? [];
+        foreach (var key in favoriteKeys)
+        {
+            if (!_byKey.TryGetValue(key, out var f))
+            {
+                var source = layers.User.Favorites != null ? "User-Datei" : "Descriptor";
+                _warnings.Add($"{source}: Favorit {key} gibt's nicht.");
+                continue;
+            }
+            if (f.Hidden || f.Advanced)
+                _warnings.Add($"Favorit {key} ist hidden/advanced, Favorit gewinnt.");
+        }
+        SetFavorites(favoriteKeys);
+
         if (d != null)
         {
-            foreach (var key in d.Favorites)
-            {
-                if (!_byKey.TryGetValue(key, out var f))
-                {
-                    _warnings.Add($"Descriptor: Favorit {key} gibt's nicht.");
-                    continue;
-                }
-                if (f.IsFavorite) continue;
-                if (f.Hidden || f.Advanced)
-                    _warnings.Add($"Descriptor: Favorit {key} ist hidden/advanced, Favorit gewinnt.");
-                f.Hidden = false;
-                f.Advanced = false;
-                f.IsFavorite = true;
-                _favorites.Add(f);
-            }
             foreach (var s in d.Sections.Keys.Where(k => !sections.ContainsKey(k)))
                 _warnings.Add($"Descriptor: Abschnitt {s} gibt's nicht.");
         }
@@ -232,8 +272,25 @@ public sealed partial class ConfigDocument
     {
         var layers = ReadLayers();
         foreach (var f in _fields) SetValues(f, layers);
+        SetFavorites(layers.User.Favorites ?? Descriptor?.Favorites ?? []);
         var all = layers.Base.Order.Concat(layers.Machine.Order).Concat(layers.Locked.Order).Concat(layers.User.Order);
         return all.Any(k => !_byKey.ContainsKey(k));
+    }
+
+    internal void SetFavorites(IEnumerable<string> keys)
+    {
+        _favorites.Clear();
+        foreach (var field in _fields) field.IsFavorite = false;
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in keys)
+        {
+            if (seen.Add(key) && _byKey.TryGetValue(key, out var field))
+            {
+                field.IsFavorite = true;
+                _favorites.Add(field);
+            }
+        }
     }
 
     private static void SetValues(ConfigField f, Layers l)

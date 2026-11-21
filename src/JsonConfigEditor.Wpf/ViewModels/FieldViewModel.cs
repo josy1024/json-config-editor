@@ -26,6 +26,7 @@ public sealed class FieldViewModel : ObservableObject
         _commitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _commitTimer.Tick += (_, _) => FlushPending();
         ResetCommand = new RelayCommand(Reset, () => CanReset);
+        ToggleFavoriteCommand = new RelayCommand(() => _owner.ToggleFavorite(this), () => CanToggleFavorite);
         BrowseCommand = new RelayCommand(Browse, () => CanEdit);
         OpenInEditorCommand = new RelayCommand(() => _owner.OpenUserFile());
         OpenFolderCommand = new RelayCommand(OpenFolder, () => ResolvedPath != null);
@@ -51,6 +52,11 @@ public sealed class FieldViewModel : ObservableObject
     public bool RestartRequired => Field.RestartRequired;
     public bool CanEdit => Field.IsEditable && !_owner.IsReadOnly;
     public bool IsReadOnlyField => !CanEdit;
+    public bool IsFavorite => Field.IsFavorite;
+    public bool CanToggleFavorite => !_owner.IsReadOnly && _owner.Document.UserFileError == null;
+    public string FavoriteGlyph => IsFavorite ? Icons.StarFill : Icons.Star;
+    public string FavoriteToolTip => IsFavorite ? "Favorit entfernen" : "Als Favorit markieren";
+    public string FavoriteAutomationName => IsFavorite ? $"Favorit entfernen: {Label}" : $"Als Favorit markieren: {Label}";
     /// <summary>Schloss nur bei IT-Sperre oder read-only, nicht bei Listen (die gehen im Texteditor).</summary>
     public bool ShowLock => Field.IsLocked || Field.ReadOnly || _owner.IsReadOnly;
     public bool IsChanged => Field.IsChanged;
@@ -155,6 +161,7 @@ public sealed class FieldViewModel : ObservableObject
     }
 
     public ICommand ResetCommand { get; }
+    public ICommand ToggleFavoriteCommand { get; }
     public ICommand BrowseCommand { get; }
     public ICommand OpenInEditorCommand { get; }
     /// <summary>Pfadfeld: Ordner im Explorer öffnen (bei Dateien: Ordner mit markierter Datei).</summary>
@@ -187,6 +194,15 @@ public sealed class FieldViewModel : ObservableObject
     {
         if (_pending) return;
         LoadFromModel();
+    }
+
+    internal void RefreshFavoriteState()
+    {
+        OnPropertyChanged(nameof(IsFavorite));
+        OnPropertyChanged(nameof(CanToggleFavorite));
+        OnPropertyChanged(nameof(FavoriteGlyph));
+        OnPropertyChanged(nameof(FavoriteToolTip));
+        OnPropertyChanged(nameof(FavoriteAutomationName));
     }
 
     /// <summary>Beim Verlassen des Felds sofort speichern.</summary>

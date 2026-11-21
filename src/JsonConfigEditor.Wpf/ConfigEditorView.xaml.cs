@@ -77,6 +77,9 @@ public partial class ConfigEditorView : UserControl, IDisposable
         }
         else
         {
+            var chip = ViewModel.Chips.FirstOrDefault(c => c.IsSelected);
+            if (chip?.Section != null) ViewModel.Chips[0].IsSelected = true;
+            UpdateLayout();
             ScrollTo(FavoritesBlock);
         }
     }

@@ -36,7 +36,7 @@ public sealed class SectionViewModel : ObservableObject
     public string Glyph => Icons.For(Section.Icon, Section.Name);
     public IReadOnlyList<FieldViewModel> Fields { get; }
     public int VisibleCount => Fields.Count(f => f.IsVisible);
-    public int Count => Fields.Count(f => !f.Field.Hidden);
+    public int Count => Fields.Count(f => !f.Field.Hidden || f.Field.IsFavorite);
 
     public bool IsVisible
     {
@@ -44,14 +44,23 @@ public sealed class SectionViewModel : ObservableObject
         set => Set(ref _isVisible, value);
     }
 
-    internal void RaiseCounts() => OnPropertyChanged(nameof(VisibleCount));
+    internal void RaiseCounts()
+    {
+        OnPropertyChanged(nameof(VisibleCount));
+        OnPropertyChanged(nameof(Count));
+    }
 }
 
 public sealed class ChipViewModel(string label, int count, SectionViewModel? section) : ObservableObject
 {
     private bool _isSelected;
+    private int _count = count;
     public string Label { get; } = label;
-    public int Count { get; } = count;
+    public int Count
+    {
+        get => _count;
+        private set => Set(ref _count, value);
+    }
     public SectionViewModel? Section { get; } = section;
     public Action<ChipViewModel>? Selected { get; set; }
 
@@ -63,6 +72,8 @@ public sealed class ChipViewModel(string label, int count, SectionViewModel? sec
             if (Set(ref _isSelected, value) && value) Selected?.Invoke(this);
         }
     }
+
+    internal void UpdateCount(int count) => Count = count;
 }
 
 /// <summary>Nav-Eintrag links: Favoriten oder ein Abschnitt.</summary>
@@ -223,7 +234,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         private set => Set(ref _favoritesVisible, value);
     }
 
-    public int TotalCount => _all.Count(f => !f.Field.Hidden);
+    public int TotalCount => _all.Count(f => !f.Field.Hidden || f.Field.IsFavorite);
     public int ChangedCount => _all.Count(f => f.IsChanged);
     public string SearchPlaceholder => $"{TotalCount} Einstellungen durchsuchen";
     public string ChangedLabel => $"Geändert · {ChangedCount}";
@@ -266,7 +277,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         set { if (Set(ref _showAdvanced, value)) ApplyFilter(); }
     }
 
-    public bool HasAdvanced => _all.Any(f => f.Field.Advanced && !f.Field.Hidden);
+    public bool HasAdvanced => _all.Any(f => f.Field.Advanced && !f.Field.Hidden && !f.Field.IsFavorite);
 
     public string? InfoMessage
     {
@@ -326,12 +337,54 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         ApplyFilter();
     }
 
+    public void ToggleFavorite(FieldViewModel field)
+    {
+        if (!field.CanToggleFavorite) return;
+
+        var adding = !field.IsFavorite;
+        var keys = Favorites.Select(f => f.Key).ToList();
+        if (!adding)
+            keys.RemoveAll(k => string.Equals(k, field.Key, StringComparison.OrdinalIgnoreCase));
+        else
+            keys.Add(field.Key);
+
+        try
+        {
+            ConfigWriter.SetFavorites(Document, keys);
+            RefreshFavoriteViews();
+            Info(adding ? $"Favorit gespeichert: {field.Label}" : $"Favorit entfernt: {field.Label}");
+        }
+        catch (Exception ex) when (ex is ConfigEditorException or InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or KeyNotFoundException)
+        {
+            Log.Warn($"Favorit für {field.Key} nicht gespeichert ({Document.Paths.UserFile}): {ex.Message}");
+            Info("Favorit nicht gespeichert: " + ex.Message);
+        }
+    }
+
+    private void RefreshFavoriteViews()
+    {
+        var byKey = _all.ToDictionary(f => f.Key, StringComparer.OrdinalIgnoreCase);
+        Favorites.Clear();
+        foreach (var field in Document.Favorites)
+            if (byKey.TryGetValue(field.Key, out var viewModel)) Favorites.Add(viewModel);
+
+        var favoritesNav = NavItems.FirstOrDefault(n => Equals(n.Target, "favorites"));
+        if (Favorites.Count > 0 && favoritesNav == null)
+            NavItems.Insert(0, new NavItem("Favoriten", Icons.Star, "favorites"));
+        else if (Favorites.Count == 0 && favoritesNav != null)
+            NavItems.Remove(favoritesNav);
+
+        foreach (var field in _all) field.RefreshFavoriteState();
+        OnPropertyChanged(nameof(HasFavorites));
+        ApplyFilter();
+    }
+
     public void ApplyFilter()
     {
         var search = _search.Trim();
         foreach (var f in _all)
         {
-            f.IsVisible = !f.Field.Hidden
+            f.IsVisible = (!f.Field.Hidden || f.Field.IsFavorite)
                           && (_showAdvanced || !f.Field.Advanced || f.Field.IsFavorite)
                           && (!_changedOnly || f.IsChanged)
                           && (search.Length == 0 || f.Matches(search));
@@ -341,9 +394,13 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         {
             s.IsVisible = (chipSection == null || chipSection == s) && s.Fields.Any(f => f.IsVisible);
             s.RaiseCounts();
+            Chips.FirstOrDefault(c => c.Section == s)?.UpdateCount(s.Count);
         }
+        Chips.FirstOrDefault(c => c.Section == null)?.UpdateCount(TotalCount);
         FavoritesVisible = chipSection == null && Favorites.Any(f => f.IsVisible);
         OnPropertyChanged(nameof(NothingFound));
+        OnPropertyChanged(nameof(SearchPlaceholder));
+        OnPropertyChanged(nameof(HasAdvanced));
     }
 
     // ---------------------------------------------------------------- Speichern / Neu laden
@@ -417,12 +474,12 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         {
             var newKeys = Document.Reload();
             foreach (var f in _all) f.RefreshFromModel();
+            RefreshFavoriteViews();
             _lastWritten = text;
             OnPropertyChanged(nameof(UserFileError));
             OnPropertyChanged(nameof(HasUserFileError));
             OnPropertyChanged(nameof(ChangedCount));
             OnPropertyChanged(nameof(ChangedLabel));
-            ApplyFilter();
             if (Document.UserFileError != null) return;
             Info(hadError
                 ? "Datei ist wieder in Ordnung, neu geladen."
@@ -487,7 +544,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(HasUserFileError));
             OnPropertyChanged(nameof(ChangedCount));
             OnPropertyChanged(nameof(ChangedLabel));
-            ApplyFilter();
+            RefreshFavoriteViews();
             Info($"Sicherung angelegt: {Path.GetFileName(backup)}. Du startest mit den Standardwerten.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ConfigEditorException)

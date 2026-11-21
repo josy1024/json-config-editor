@@ -7,6 +7,7 @@ public static class Icons
 
     public const string Settings = "";
     public const string Star = "";
+    public const string StarFill = "\uE735";
     public const string Lock = "";
     public const string Restart = "";
     public const string Reset = "";

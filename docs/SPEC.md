@@ -89,7 +89,7 @@ Pfad-artig heißt: Key endet auf `Path`, `Dir`, `Directory`, `Folder` oder `File
 
 Sonderfälle:
 
-* Keys mit `_` vorne (`_hinweis`, `_verfuegbar`, `_autoconfig`) sind Metadaten: kein Feld. `_hinweis` wird als Hinweistext über dem Abschnitt gezeigt. Beim Schreiben bleiben sie unverändert erhalten.
+* Keys mit `_` vorne (`_hinweis`, `_verfuegbar`, `_autoconfig`, `_jsonConfigEditor`) sind Metadaten: kein Feld. `_hinweis` wird als Hinweistext über dem Abschnitt gezeigt. `_jsonConfigEditor.favorites` speichert persönliche Favoriten. Beim Schreiben bleiben Metadaten erhalten.
 * Keys, die nur in der User-Datei stehen (nicht in Base): Abschnitt "Sonstige", anzeigen und editierbar, nie löschen.
 
 ## 5. Descriptor `appsettings.editor.json`
@@ -159,7 +159,8 @@ Reserviert für später (v1 ignoriert sie mit Warnung im Log): `options`, `optio
 * `favorites` = Liste von Keys, in der gewünschten Reihenfolge.
 * Werden als eigener Block **"Favoriten" ganz oben** gezeigt (wie "Neu in Labs" im Vorbild). Das Feld bleibt zusätzlich in seinem Abschnitt, beide zeigen denselben Wert.
 * Favorit schlägt `hidden` und `advanced` (Widerspruch → Warnung im Log, Favorit gewinnt).
-* Ohne Descriptor gibt's keinen Favoriten-Block.
+* Eigene Favoriten stehen in der User-Datei unter `_jsonConfigEditor.favorites`. Fehlt dieser Eintrag, gelten die Favoriten des Descriptors; eine vorhandene leere Liste entfernt auch alle Descriptor-Favoriten für diesen User.
+* Ohne Descriptor erscheint der Favoriten-Block, sobald mindestens ein Feld als Favorit markiert wurde.
 
 ### Validierung des Descriptors
 
@@ -355,7 +356,7 @@ Manuell:
 
 ## 13. Später
 
-* Eigene Favoriten des Users (📌 anheften, getrennt von der Config gespeichert).
+* ✅ Eigene Favoriten des Users (Stern am Feld, in `_jsonConfigEditor.favorites` der User-Datei gespeichert).
 * Enum-Dropdown (`options`), z. B. `auto | vulkan | cpu`.
 * Datei-aus-Ordner (`optionsFromGlob`), z. B. Whisper-Modelle aus dem Modellordner.
 * Sortierbare Objekt-Listen (`list`) mit Provider der App, z. B. Mikro-Prioliste.
@@ -366,8 +367,8 @@ Manuell:
 
 ## 14. BUGnFeatures
 
-* Favoriten sternchen bei jedem Element Outline = kein Favirit, Solid = Favorit
-* Favoriten werden bei der Local Config der APP gespeichert
+* ✅ Favoritenstern an jedem Feld: Outline = kein Favorit, Solid = Favorit
+* ✅ Favoriten werden in der lokalen Config der App gespeichert
 * ✅ Wenn ich in ein Einstellungen Scrolle, werden Die Abschnitte auch vom aktuellen Abschnitt markiert
 * ✅ Abschnitte Links lösen kurze "Bewegung" aus (damit der zusammenhang besser / klarer wird)
 * Wenn Erweitert anzeigen, kann im Admin modus ausgewählt werden, was erweitert ist? => einfaches Rückschreiben

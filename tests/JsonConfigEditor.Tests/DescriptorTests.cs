@@ -46,11 +46,27 @@ public class DescriptorTests
 
         Assert.Equal(["Recording:SegmentMinSeconds", "Live:ChunkSeconds"], doc.Favorites.Select(f => f.Key));
         var seg = doc.Find("Recording:SegmentMinSeconds")!;
-        Assert.False(seg.Advanced);
+        Assert.True(seg.Advanced);
+        Assert.True(seg.IsFavorite);
         Assert.Equal(FieldKind.Number, seg.Kind);
         Assert.Equal("s", seg.Unit);
         Assert.Contains(doc.Warnings, w => w.Contains("Gibts:Nicht"));
         Assert.Contains(doc.Warnings, w => w.Contains("SegmentMinSeconds") && w.Contains("Favorit gewinnt"));
+    }
+
+    [Fact]
+    public void User_Favoriten_ueberschreiben_Descriptor_Favoriten_persistent()
+    {
+        using var t = Setup();
+        var options = new ConfigEditorOptions { DescriptorPath = t.Descriptor };
+        var doc = ConfigDocument.Load(options);
+
+        ConfigWriter.SetFavorites(doc, ["Live:ChunkSeconds"]);
+
+        Assert.Equal(["Live:ChunkSeconds"], doc.Favorites.Select(f => f.Key));
+        var reloaded = ConfigDocument.Load(options);
+        Assert.Equal(["Live:ChunkSeconds"], reloaded.Favorites.Select(f => f.Key));
+        Assert.False(reloaded.Find("Recording:SegmentMinSeconds")!.IsFavorite);
     }
 
     [Fact]

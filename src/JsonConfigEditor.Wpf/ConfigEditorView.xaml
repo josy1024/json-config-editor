@@ -68,6 +68,12 @@
 
                         <!-- Rechte Spalte: Bedienelement -->
                         <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button Style="{StaticResource IconButton}" Command="{Binding ToggleFavoriteCommand}" IsEnabled="{Binding CanToggleFavorite}"
+                                    ToolTip="{Binding FavoriteToolTip}" AutomationProperties.Name="{Binding FavoriteAutomationName}"
+                                    Margin="0,0,6,0">
+                                <TextBlock Style="{StaticResource IconText}" Text="{Binding FavoriteGlyph}" />
+                            </Button>
+
                             <Button Style="{StaticResource IconButton}" Command="{Binding ResetCommand}" Margin="0,0,6,0"
                                     ToolTip="{Binding DefaultText, StringFormat=Zurücksetzen ({0})}"
                                     AutomationProperties.Name="Zurücksetzen"
