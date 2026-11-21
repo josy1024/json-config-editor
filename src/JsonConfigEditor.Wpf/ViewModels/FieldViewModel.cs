@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using System.Windows.Input;
@@ -27,6 +28,8 @@ public sealed class FieldViewModel : ObservableObject
         ResetCommand = new RelayCommand(Reset, () => CanReset);
         BrowseCommand = new RelayCommand(Browse, () => CanEdit);
         OpenInEditorCommand = new RelayCommand(() => _owner.OpenUserFile());
+        OpenFolderCommand = new RelayCommand(OpenFolder, () => ResolvedPath != null);
+        CopyPathCommand = new RelayCommand(CopyPath, () => ResolvedPath != null);
         LoadFromModel();
     }
 
@@ -154,6 +157,17 @@ public sealed class FieldViewModel : ObservableObject
     public ICommand ResetCommand { get; }
     public ICommand BrowseCommand { get; }
     public ICommand OpenInEditorCommand { get; }
+    /// <summary>Pfadfeld: Ordner im Explorer öffnen (bei Dateien: Ordner mit markierter Datei).</summary>
+    public ICommand OpenFolderCommand { get; }
+    public ICommand CopyPathCommand { get; }
+
+    /// <summary>Wirksamer Pfad (Umgebungsvariablen und relativ aufgelöst), null wenn leer.</summary>
+    public string? ResolvedPath => !IsPath ? null
+        : _pathCheck?.Expanded is { Length: > 0 } e ? e
+        : string.IsNullOrWhiteSpace(_text) ? null
+        : Environment.ExpandEnvironmentVariables(_text.Trim());
+
+    public string OpenFolderTooltip => Field.PathKind == PathKind.File ? "Ordner öffnen, Datei markieren" : "Ordner öffnen";
 
     // ---------------------------------------------------------------- Ablauf
 
@@ -238,6 +252,46 @@ public sealed class FieldViewModel : ObservableObject
             if (dir != null && Directory.Exists(dir)) dlg.InitialDirectory = dir;
             if (dlg.ShowDialog() == true) ApplyBrowsed(dlg.FileName);
         }
+    }
+
+    private void OpenFolder()
+    {
+        if (ResolvedPath is not { } path) return;
+        try
+        {
+            if (Field.PathKind == PathKind.File && File.Exists(path))
+            {
+                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+                return;
+            }
+            var wanted = Field.PathKind == PathKind.File || File.Exists(path) ? Path.GetDirectoryName(path) : path;
+            // Ordner gibt's (noch) nicht: nächsten vorhandenen darüber öffnen
+            var dir = wanted;
+            while (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) dir = Path.GetDirectoryName(dir);
+            if (string.IsNullOrEmpty(dir))
+            {
+                _owner.Info($"{wanted} gibt's nicht.");
+                return;
+            }
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+            if (!string.Equals(dir, wanted, StringComparison.OrdinalIgnoreCase))
+                _owner.Info($"{wanted} gibt's noch nicht, geöffnet: {dir}");
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException or ArgumentException or InvalidOperationException)
+        {
+            _owner.Info("Ordner nicht zu öffnen: " + ex.Message);
+        }
+    }
+
+    private void CopyPath()
+    {
+        if (ResolvedPath is not { } path) return;
+        try
+        {
+            System.Windows.Clipboard.SetText(path);
+            _owner.Info("Pfad kopiert: " + path);
+        }
+        catch (System.Runtime.InteropServices.ExternalException ex) { _owner.Info("Zwischenablage gerade belegt: " + ex.Message); }
     }
 
     private void ApplyBrowsed(string path)

@@ -12,6 +12,23 @@
                 <ResourceDictionary Source="/JsonConfigEditor.Wpf;component/Themes/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- Rechtsklick auf ein Pfadfeld. x:Shared=False: jede Karte bekommt ihr eigenes Menü (DataContext) -->
+            <ContextMenu x:Key="PathMenu" x:Shared="False">
+                <MenuItem Header="Ordner öffnen" Command="{Binding OpenFolderCommand}" FontWeight="SemiBold">
+                    <MenuItem.Icon><TextBlock Style="{StaticResource IconText}" Text="&#xE838;" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Durchsuchen …" Command="{Binding BrowseCommand}">
+                    <MenuItem.Icon><TextBlock Style="{StaticResource IconText}" Text="&#xE712;" /></MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Pfad kopieren" Command="{Binding CopyPathCommand}">
+                    <MenuItem.Icon><TextBlock Style="{StaticResource IconText}" Text="&#xE8C8;" /></MenuItem.Icon>
+                </MenuItem>
+                <Separator />
+                <MenuItem Command="ApplicationCommands.Cut" />
+                <MenuItem Command="ApplicationCommands.Copy" />
+                <MenuItem Command="ApplicationCommands.Paste" />
+            </ContextMenu>
+
             <!-- ============================== Karte pro Feld ============================== -->
             <DataTemplate x:Key="FieldCard" DataType="{x:Type vm:FieldViewModel}">
                 <Border Style="{StaticResource Card}" Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}"
@@ -90,18 +107,26 @@
                             </StackPanel>
                         </StackPanel>
 
-                        <!-- Pfad: breites Feld + Durchsuchen -->
-                        <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0" Visibility="{Binding IsPath, Converter={StaticResource BoolToVis}}">
+                        <!-- Pfad: breites Feld + Ordner öffnen + Durchsuchen, Rechtsklick = Menü -->
+                        <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0" Visibility="{Binding IsPath, Converter={StaticResource BoolToVis}}"
+                              Background="Transparent" ContextMenu="{StaticResource PathMenu}" ContextMenuService.ShowOnDisabled="True">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
+                            <!-- TextBox: Rechtsklick geht auch bei gesperrtem Feld (Ordner öffnen, Pfad kopieren) -->
                             <TextBox VerticalContentAlignment="Center" Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
                                      IsEnabled="{Binding CanEdit}" LostFocus="OnFieldLostFocus" KeyDown="OnFieldKeyDown"
+                                     ContextMenu="{StaticResource PathMenu}" ContextMenuService.ShowOnDisabled="True"
                                      AutomationProperties.Name="{Binding Label}" />
-                            <Button Grid.Column="1" Margin="6,0,0,0" Padding="10,4" Command="{Binding BrowseCommand}"
-                                    ToolTip="Durchsuchen" AutomationProperties.Name="Durchsuchen">
-                                <TextBlock Style="{StaticResource IconText}" Text="&#xE8B7;" />
+                            <Button Grid.Column="1" Margin="6,0,0,0" Padding="10,4" Command="{Binding OpenFolderCommand}"
+                                    ToolTip="{Binding OpenFolderTooltip}" AutomationProperties.Name="{Binding OpenFolderTooltip}">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE838;" />
+                            </Button>
+                            <Button Grid.Column="2" Margin="6,0,0,0" Padding="10,4" Command="{Binding BrowseCommand}"
+                                    ToolTip="Durchsuchen …" AutomationProperties.Name="Durchsuchen">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE712;" />
                             </Button>
                         </Grid>
 

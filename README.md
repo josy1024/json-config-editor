@@ -12,6 +12,7 @@ Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](
 * **Descriptor** `appsettings.editor.json` (optional): Labels, Favoriten oben, Einheiten, Grenzen, read-only, versteckt, erweitert, Neustart-Hinweis, Pfadprüfung inkl. OneDrive-Warnung.
 * **Sofort speichern**, atomar. Unbekannte Keys, `_hinweis`-Metadaten und Listen in der User-Datei bleiben erhalten.
 * Suche, Filter pro Abschnitt, "Geändert"-Ansicht, Strg+F.
+* Pfadfelder: 📂 öffnet den Ordner im Explorer (bei Dateien mit markierter Datei, fehlt der Ordner: der nächste vorhandene darüber), ⋯ durchsucht. Rechtsklick: Ordner öffnen, Durchsuchen, Pfad kopieren. Geht auch bei gesperrten Feldern.
 * Ändert die App die Datei selbst, lädt der Editor neu.
 * Ohne Parameter: Startseite mit bekannten Apps (IT-Liste, eigene Liste, zuletzt geöffnet).
 

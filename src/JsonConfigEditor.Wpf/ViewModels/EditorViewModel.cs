@@ -376,7 +376,7 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void Info(string message)
+    internal void Info(string message)
     {
         InfoMessage = message;
         _infoTimer.Stop();
