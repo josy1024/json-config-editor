@@ -323,7 +323,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <!-- Kopf: Titel, Suche, Alle | Geändert -->
+                    <!-- Kopf: Titel, Suche, Alle | Geändert | Favoriten -->
                     <Grid Grid.Row="0" Margin="0,0,16,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
@@ -331,22 +331,27 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="Einstellungen" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,18,0" />
-                        <Grid Grid.Column="1" MaxWidth="320" HorizontalAlignment="Left">
-                            <TextBox x:Name="Search" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                     Padding="30,5,28,5" VerticalContentAlignment="Center"
-                                     AutomationProperties.Name="Einstellungen durchsuchen" />
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" FontSize="13" Margin="10,0,0,0"
-                                       HorizontalAlignment="Left" IsHitTestVisible="False"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            <TextBlock Text="{Binding SearchPlaceholder}" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
-                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                                       Visibility="{Binding HasSearch, Converter={StaticResource BoolToVis}, ConverterParameter=!}" />
-                            <Button Style="{StaticResource IconButton}" HorizontalAlignment="Right" Margin="0,0,3,0"
-                                    Command="{Binding ClearSearchCommand}" AutomationProperties.Name="Suche löschen"
-                                    Visibility="{Binding HasSearch, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="10" />
-                            </Button>
-                        </Grid>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Grid Width="320">
+                                <TextBox x:Name="Search" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="30,5,28,5" VerticalContentAlignment="Center"
+                                         AutomationProperties.Name="Einstellungen durchsuchen" />
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" FontSize="13" Margin="10,0,0,0"
+                                           HorizontalAlignment="Left" IsHitTestVisible="False"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="{Binding SearchPlaceholder}" Margin="33,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                           Visibility="{Binding HasSearch, Converter={StaticResource BoolToVis}, ConverterParameter=!}" />
+                                <Button Style="{StaticResource IconButton}" HorizontalAlignment="Right" Margin="0,0,3,0"
+                                        Command="{Binding ClearSearchCommand}" AutomationProperties.Name="Suche löschen"
+                                        Visibility="{Binding HasSearch, Converter={StaticResource BoolToVis}}">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="10" />
+                                </Button>
+                            </Grid>
+                            <TextBlock Text="{Binding SearchResultLabel}" Margin="10,0,0,0" VerticalAlignment="Center"
+                                       Style="{StaticResource SecondaryText}"
+                                       Visibility="{Binding HasSearch, Converter={StaticResource BoolToVis}}" />
+                        </StackPanel>
                         <Border Grid.Column="2" CornerRadius="7" Padding="3" BorderThickness="1"
                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                 Background="{DynamicResource SubtleFillColorSecondaryBrush}">
@@ -355,6 +360,18 @@
                                              IsChecked="{Binding ShowAll}" />
                                 <RadioButton Style="{StaticResource Segment}" GroupName="ChangedFilter" Content="{Binding ChangedLabel}"
                                              IsChecked="{Binding ShowChangedOnly}" />
+                                <RadioButton Style="{StaticResource Segment}" GroupName="ChangedFilter"
+                                             IsChecked="{Binding ShowFavoritesOnly}"
+                                             Visibility="{Binding HasFavorites, Converter={StaticResource BoolToVis}}"
+                                             ToolTip="Nur Favoriten anzeigen" AutomationProperties.Name="Nur Favoriten anzeigen">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource IconText}" Text="&#xE734;" Margin="0,0,6,0"
+                                                   Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                        <TextBlock Text="Favoriten" />
+                                        <TextBlock Text="{Binding FavoriteCount}" Margin="5,0,0,0"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </RadioButton>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -366,7 +383,8 @@
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:ChipViewModel}">
-                                <RadioButton Style="{StaticResource Chip}" GroupName="Chips" IsChecked="{Binding IsSelected}">
+                                <RadioButton Style="{StaticResource Chip}" GroupName="Chips" IsChecked="{Binding IsSelected}"
+                                             Visibility="{Binding IsVisible, Converter={StaticResource BoolToVis}}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="{Binding Label}" />
                                         <TextBlock Text="{Binding Count}" Margin="6,0,0,0" FontWeight="Normal"
@@ -432,16 +450,6 @@
                     <ScrollViewer x:Name="Scroller" Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                   SizeChanged="OnScrollerSizeChanged" ScrollChanged="OnScrollerScrollChanged">
                         <StackPanel x:Name="CardsPanel" Margin="0,4,16,24">
-                            <!-- Favoriten -->
-                            <StackPanel x:Name="FavoritesBlock" Visibility="{Binding FavoritesVisible, Converter={StaticResource BoolToVis}}">
-                                <StackPanel Orientation="Horizontal" Margin="0,2,0,8">
-                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE734;" Margin="0,0,8,0" FontSize="14" />
-                                    <TextBlock Text="Favoriten" FontSize="15" FontWeight="SemiBold" />
-                                </StackPanel>
-                                <ItemsControl ItemsSource="{Binding Favorites}" ItemTemplate="{StaticResource FieldCard}"
-                                              ItemsPanel="{StaticResource CardGrid}" Focusable="False" />
-                            </StackPanel>
-
                             <!-- Abschnitte -->
                             <ItemsControl x:Name="SectionList" ItemsSource="{Binding Sections}" Focusable="False">
                                 <ItemsControl.ItemTemplate>

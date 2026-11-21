@@ -19,6 +19,7 @@ public sealed class SavedEventArgs(IReadOnlyList<string> changedKeys, bool resta
 public sealed class SectionViewModel : ObservableObject
 {
     private bool _isVisible = true;
+    private bool _hasVisibleFields;
 
     public SectionViewModel(ConfigSection section, IEnumerable<FieldViewModel> fields)
     {
@@ -38,6 +39,12 @@ public sealed class SectionViewModel : ObservableObject
     public int VisibleCount => Fields.Count(f => f.IsVisible);
     public int Count => Fields.Count(f => !f.Field.Hidden || f.Field.IsFavorite);
 
+    public bool HasVisibleFields
+    {
+        get => _hasVisibleFields;
+        set => Set(ref _hasVisibleFields, value);
+    }
+
     public bool IsVisible
     {
         get => _isVisible;
@@ -54,6 +61,7 @@ public sealed class SectionViewModel : ObservableObject
 public sealed class ChipViewModel(string label, int count, SectionViewModel? section) : ObservableObject
 {
     private bool _isSelected;
+    private bool _isVisible = true;
     private int _count = count;
     public string Label { get; } = label;
     public int Count
@@ -63,6 +71,11 @@ public sealed class ChipViewModel(string label, int count, SectionViewModel? sec
     }
     public SectionViewModel? Section { get; } = section;
     public Action<ChipViewModel>? Selected { get; set; }
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set => Set(ref _isVisible, value);
+    }
 
     public bool IsSelected
     {
@@ -76,7 +89,7 @@ public sealed class ChipViewModel(string label, int count, SectionViewModel? sec
     internal void UpdateCount(int count) => Count = count;
 }
 
-/// <summary>Nav-Eintrag links: Favoriten oder ein Abschnitt.</summary>
+/// <summary>Nav-Eintrag links für einen Abschnitt.</summary>
 public sealed record NavItem(string Label, string Glyph, object Target);
 
 /// <summary>Ganzer Editor: Dokument, Filter, Banner, Dateiüberwachung.</summary>
@@ -90,11 +103,11 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     private string? _lastWritten;
     private string _search = "";
     private bool _changedOnly;
+    private bool _favoritesOnly;
     private bool _showAdvanced;
     private ChipViewModel? _chip;
     private string? _info;
     private int _columns = 2;
-    private bool _favoritesVisible;
 
     public EditorViewModel(ConfigEditorOptions options)
     {
@@ -228,17 +241,14 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
     public bool HasRootHint => !string.IsNullOrWhiteSpace(RootHint);
 
     public bool HasFavorites => Favorites.Count > 0;
-    public bool FavoritesVisible
-    {
-        get => _favoritesVisible;
-        private set => Set(ref _favoritesVisible, value);
-    }
-
     public int TotalCount => _all.Count(f => !f.Field.Hidden || f.Field.IsFavorite);
+    public int FilteredCount => _all.Count(f => f.IsVisible);
+    public int FavoriteCount => Favorites.Count;
     public int ChangedCount => _all.Count(f => f.IsChanged);
     public string SearchPlaceholder => $"{TotalCount} Einstellungen durchsuchen";
+    public string SearchResultLabel => $"{FilteredCount} Treffer";
     public string ChangedLabel => $"Geändert · {ChangedCount}";
-    public bool NothingFound => !HasLoadError && Sections.All(s => !s.IsVisible) && !FavoritesVisible;
+    public bool NothingFound => !HasLoadError && Sections.All(s => !s.IsVisible);
 
     public int Columns
     {
@@ -261,14 +271,42 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         get => _changedOnly;
         set
         {
-            if (Set(ref _changedOnly, value)) { OnPropertyChanged(nameof(ShowAll)); ApplyFilter(); }
+            if (!Set(ref _changedOnly, value)) return;
+            if (value && _favoritesOnly)
+            {
+                _favoritesOnly = false;
+                OnPropertyChanged(nameof(ShowFavoritesOnly));
+            }
+            OnPropertyChanged(nameof(ShowAll));
+            ApplyFilter();
+        }
+    }
+
+    public bool ShowFavoritesOnly
+    {
+        get => _favoritesOnly;
+        set
+        {
+            if (!Set(ref _favoritesOnly, value)) return;
+            if (value && _changedOnly)
+            {
+                _changedOnly = false;
+                OnPropertyChanged(nameof(ShowChangedOnly));
+            }
+            OnPropertyChanged(nameof(ShowAll));
+            ApplyFilter();
         }
     }
 
     public bool ShowAll
     {
-        get => !_changedOnly;
-        set => ShowChangedOnly = !value;
+        get => !_changedOnly && !_favoritesOnly;
+        set
+        {
+            if (!value) return;
+            ShowChangedOnly = false;
+            ShowFavoritesOnly = false;
+        }
     }
 
     public bool ShowAdvanced
@@ -319,7 +357,6 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
             if (svm.Count > 0) Sections.Add(svm);
         }
 
-        if (HasFavorites) NavItems.Add(new NavItem("Favoriten", Icons.Star, "favorites"));
         foreach (var s in Sections) NavItems.Add(new NavItem(s.Label, s.Glyph, s));
 
         var all = new ChipViewModel("Alle", TotalCount, null) { Selected = OnChip };
@@ -368,14 +405,9 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         foreach (var field in Document.Favorites)
             if (byKey.TryGetValue(field.Key, out var viewModel)) Favorites.Add(viewModel);
 
-        var favoritesNav = NavItems.FirstOrDefault(n => Equals(n.Target, "favorites"));
-        if (Favorites.Count > 0 && favoritesNav == null)
-            NavItems.Insert(0, new NavItem("Favoriten", Icons.Star, "favorites"));
-        else if (Favorites.Count == 0 && favoritesNav != null)
-            NavItems.Remove(favoritesNav);
-
         foreach (var field in _all) field.RefreshFavoriteState();
         OnPropertyChanged(nameof(HasFavorites));
+        OnPropertyChanged(nameof(FavoriteCount));
         ApplyFilter();
     }
 
@@ -387,20 +419,59 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
             f.IsVisible = (!f.Field.Hidden || f.Field.IsFavorite)
                           && (_showAdvanced || !f.Field.Advanced || f.Field.IsFavorite)
                           && (!_changedOnly || f.IsChanged)
+                          && (!_favoritesOnly || f.IsFavorite)
                           && (search.Length == 0 || f.Matches(search));
         }
         var chipSection = _chip?.Section;
         foreach (var s in Sections)
         {
-            s.IsVisible = (chipSection == null || chipSection == s) && s.Fields.Any(f => f.IsVisible);
+            s.HasVisibleFields = s.Fields.Any(f => f.IsVisible);
+            s.IsVisible = (chipSection == null || chipSection == s) && s.HasVisibleFields;
             s.RaiseCounts();
-            Chips.FirstOrDefault(c => c.Section == s)?.UpdateCount(s.Count);
+            var chip = Chips.FirstOrDefault(c => c.Section == s);
+            if (chip != null)
+            {
+                chip.IsVisible = s.HasVisibleFields;
+                chip.UpdateCount(s.VisibleCount);
+            }
         }
-        Chips.FirstOrDefault(c => c.Section == null)?.UpdateCount(TotalCount);
-        FavoritesVisible = chipSection == null && Favorites.Any(f => f.IsVisible);
+        var allChip = Chips.FirstOrDefault(c => c.Section == null);
+        if (allChip != null) allChip.UpdateCount(FilteredCount);
+        SyncNavItems();
         OnPropertyChanged(nameof(NothingFound));
+        OnPropertyChanged(nameof(FilteredCount));
+        OnPropertyChanged(nameof(SearchResultLabel));
         OnPropertyChanged(nameof(SearchPlaceholder));
         OnPropertyChanged(nameof(HasAdvanced));
+    }
+
+    private void SyncNavItems()
+    {
+        var visibleSections = Sections.Where(s => s.HasVisibleFields).ToList();
+        for (var i = NavItems.Count - 1; i >= 0; i--)
+        {
+            if (NavItems[i].Target is not SectionViewModel section || !visibleSections.Contains(section))
+                NavItems.RemoveAt(i);
+        }
+
+        for (var i = 0; i < visibleSections.Count; i++)
+        {
+            var section = visibleSections[i];
+            var currentIndex = -1;
+            for (var j = 0; j < NavItems.Count; j++)
+            {
+                if (ReferenceEquals(NavItems[j].Target, section))
+                {
+                    currentIndex = j;
+                    break;
+                }
+            }
+
+            if (currentIndex < 0)
+                NavItems.Insert(i, new NavItem(section.Label, section.Glyph, section));
+            else if (currentIndex != i)
+                NavItems.Move(currentIndex, i);
+        }
     }
 
     // ---------------------------------------------------------------- Speichern / Neu laden

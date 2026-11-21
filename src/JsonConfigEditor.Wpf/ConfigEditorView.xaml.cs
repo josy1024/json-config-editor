@@ -63,24 +63,16 @@ public partial class ConfigEditorView : UserControl, IDisposable
     {
         if (_syncingNavFromScroll) return;
         if (Nav.SelectedItem is not NavItem item) return;
-        if (item.Target is SectionViewModel section)
+        if (item.Target is not SectionViewModel section) return;
+
+        // Filter-Chip gilt evtl. für einen anderen Abschnitt: dann auf "Alle", sonst ist das Ziel unsichtbar
+        var chip = ViewModel.Chips.FirstOrDefault(c => c.IsSelected);
+        if (chip?.Section != null && chip.Section != section) ViewModel.Chips[0].IsSelected = true;
+        UpdateLayout();
+        if (SectionList.ItemContainerGenerator.ContainerFromItem(section) is FrameworkElement el)
         {
-            // Filter-Chip gilt evtl. für einen anderen Abschnitt: dann auf "Alle", sonst ist das Ziel unsichtbar
-            var chip = ViewModel.Chips.FirstOrDefault(c => c.IsSelected);
-            if (chip?.Section != null && chip.Section != section) ViewModel.Chips[0].IsSelected = true;
-            UpdateLayout();
-            if (SectionList.ItemContainerGenerator.ContainerFromItem(section) is FrameworkElement el)
-            {
-                ScrollTo(el);
-                PlaySectionMotion(el);
-            }
-        }
-        else
-        {
-            var chip = ViewModel.Chips.FirstOrDefault(c => c.IsSelected);
-            if (chip?.Section != null) ViewModel.Chips[0].IsSelected = true;
-            UpdateLayout();
-            ScrollTo(FavoritesBlock);
+            ScrollTo(el);
+            PlaySectionMotion(el);
         }
     }
 
@@ -106,14 +98,7 @@ public partial class ConfigEditorView : UserControl, IDisposable
         if (Scroller.ScrollableHeight > 0 && Scroller.VerticalOffset >= Scroller.ScrollableHeight - 1)
             activeSection = lastVisibleSection;
 
-        object? target = activeSection;
-        if (target == null)
-        {
-            var favoritesTop = FavoritesBlock.Visibility == Visibility.Visible ? GetTopInScroller(FavoritesBlock) : null;
-            var favoritesAtAnchor = favoritesTop <= NavActivationOffset &&
-                                    favoritesTop + FavoritesBlock.ActualHeight > NavActivationOffset;
-            target = favoritesAtAnchor ? "favorites" : firstVisibleSection;
-        }
+        object? target = activeSection ?? firstVisibleSection;
         var navItem = ViewModel.NavItems.FirstOrDefault(n => Equals(n.Target, target));
         if (navItem == null || ReferenceEquals(Nav.SelectedItem, navItem)) return;
 
