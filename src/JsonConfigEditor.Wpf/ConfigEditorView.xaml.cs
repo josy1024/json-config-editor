@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using JsonConfigEditor.Core;
 using JsonConfigEditor.Wpf.ViewModels;
 
@@ -14,7 +15,9 @@ namespace JsonConfigEditor.Wpf;
 public partial class ConfigEditorView : UserControl, IDisposable
 {
     private const string FluentDictionary = "pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml";
+    private const double NavActivationOffset = 56;
     private bool _scrolledInitially;
+    private bool _syncingNavFromScroll;
 
     public ConfigEditorView(ConfigEditorOptions options) : this(new EditorViewModel(options)) { }
 
@@ -58,6 +61,7 @@ public partial class ConfigEditorView : UserControl, IDisposable
 
     private void OnNavSelected(object sender, SelectionChangedEventArgs e)
     {
+        if (_syncingNavFromScroll) return;
         if (Nav.SelectedItem is not NavItem item) return;
         if (item.Target is SectionViewModel section)
         {
@@ -65,12 +69,70 @@ public partial class ConfigEditorView : UserControl, IDisposable
             var chip = ViewModel.Chips.FirstOrDefault(c => c.IsSelected);
             if (chip?.Section != null && chip.Section != section) ViewModel.Chips[0].IsSelected = true;
             UpdateLayout();
-            if (SectionList.ItemContainerGenerator.ContainerFromItem(section) is FrameworkElement el) ScrollTo(el);
+            if (SectionList.ItemContainerGenerator.ContainerFromItem(section) is FrameworkElement el)
+            {
+                ScrollTo(el);
+                PlaySectionMotion(el);
+            }
         }
         else
         {
             ScrollTo(FavoritesBlock);
         }
+    }
+
+    private void OnScrollerScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (Scroller.ViewportHeight <= 0) return;
+
+        SectionViewModel? activeSection = null;
+        SectionViewModel? firstVisibleSection = null;
+        SectionViewModel? lastVisibleSection = null;
+        foreach (var section in ViewModel.Sections.Where(s => s.IsVisible))
+        {
+            if (SectionList.ItemContainerGenerator.ContainerFromItem(section) is not FrameworkElement element ||
+                element.Visibility != Visibility.Visible)
+                continue;
+
+            firstVisibleSection ??= section;
+            lastVisibleSection = section;
+            var top = GetTopInScroller(element);
+            if (top is <= NavActivationOffset) activeSection = section;
+        }
+
+        if (Scroller.ScrollableHeight > 0 && Scroller.VerticalOffset >= Scroller.ScrollableHeight - 1)
+            activeSection = lastVisibleSection;
+
+        object? target = activeSection;
+        if (target == null)
+        {
+            var favoritesTop = FavoritesBlock.Visibility == Visibility.Visible ? GetTopInScroller(FavoritesBlock) : null;
+            var favoritesAtAnchor = favoritesTop <= NavActivationOffset &&
+                                    favoritesTop + FavoritesBlock.ActualHeight > NavActivationOffset;
+            target = favoritesAtAnchor ? "favorites" : firstVisibleSection;
+        }
+        var navItem = ViewModel.NavItems.FirstOrDefault(n => Equals(n.Target, target));
+        if (navItem == null || ReferenceEquals(Nav.SelectedItem, navItem)) return;
+
+        _syncingNavFromScroll = true;
+        try { Nav.SelectedItem = navItem; }
+        finally { _syncingNavFromScroll = false; }
+    }
+
+    private double? GetTopInScroller(FrameworkElement element)
+    {
+        try { return element.TransformToAncestor(Scroller).Transform(new Point(0, 0)).Y; }
+        catch (InvalidOperationException) { return null; }
+    }
+
+    private static void PlaySectionMotion(FrameworkElement element)
+    {
+        var transform = new TranslateTransform();
+        element.RenderTransform = transform;
+        transform.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(7, 0, TimeSpan.FromMilliseconds(180))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+        });
     }
 
     private void ScrollTo(FrameworkElement element)

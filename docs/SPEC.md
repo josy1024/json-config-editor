@@ -368,8 +368,8 @@ Manuell:
 
 * Favoriten sternchen bei jedem Element Outline = kein Favirit, Solid = Favorit
 * Favoriten werden bei der Local Config der APP gespeichert
-* Wenn ich in ein Einstellungen Scrolle, werden Die Abschnitte auch vom aktuellen Abschnitt markiert
-* Abschnitte Links lösen kurze "Bewegung" aus
+* ✅ Wenn ich in ein Einstellungen Scrolle, werden Die Abschnitte auch vom aktuellen Abschnitt markiert
+* ✅ Abschnitte Links lösen kurze "Bewegung" aus (damit der zusammenhang besser / klarer wird)
 * Wenn Erweitert anzeigen, kann im Admin modus ausgewählt werden, was erweitert ist? => einfaches Rückschreiben
 * Erweitert sind dann mit "PI" Markiert, Text Kursiv? - Andere ideen?
 * Erweitert Farblich besser kennzeichnen

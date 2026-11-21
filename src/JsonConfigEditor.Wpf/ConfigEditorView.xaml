@@ -407,7 +407,7 @@
 
                     <!-- Karten -->
                     <ScrollViewer x:Name="Scroller" Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                  SizeChanged="OnScrollerSizeChanged">
+                                  SizeChanged="OnScrollerSizeChanged" ScrollChanged="OnScrollerScrollChanged">
                         <StackPanel x:Name="CardsPanel" Margin="0,4,16,24">
                             <!-- Favoriten -->
                             <StackPanel x:Name="FavoritesBlock" Visibility="{Binding FavoritesVisible, Converter={StaticResource BoolToVis}}">
