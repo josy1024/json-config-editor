@@ -167,6 +167,84 @@ public class SelfHealingTests
         Assert.True(d.Extra!.ContainsKey("bar"));
     }
 
+    // ---------------------------------------------------------------- Favoriten-Metadaten
+
+    [Theory]
+    [InlineData("\"kaputt\"")]
+    [InlineData("[ 1, 2 ]")]
+    [InlineData("{ \"favorites\": \"A\" }")]
+    public void Broken_editor_metadata_is_repaired_when_saving_favorites(string metadata)
+    {
+        using var t = new TempDir().WithBase("""{ "A": 0, "B": 0 }""")
+            .WithUser($$"""{ "A": 1, "_jsonConfigEditor": {{metadata}}, "_hinweis": "bleibt" }""");
+        var doc = t.Load();
+        Assert.Contains(doc.Warnings, w => w.Contains("_jsonConfigEditor"));
+
+        ConfigWriter.SetFavorites(doc, ["B"]);
+
+        var root = JsonNode.Parse(t.UserText)!.AsObject();
+        Assert.Equal("B", (string)root["_jsonConfigEditor"]!["favorites"]![0]!);
+        Assert.Equal(1, (int)root["A"]!);
+        Assert.Equal("bleibt", (string)root["_hinweis"]!);
+        Assert.Equal(["B"], t.Load().Favorites.Select(f => f.Key));
+    }
+
+    // ---------------------------------------------------------------- ein Fenster pro Datei
+
+    [Fact]
+    public void Second_instance_reaches_the_first_and_gets_ok()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"jce-si-{Guid.NewGuid():N}.json");
+        using var first = SingleInstance.TryAcquire(file, null, out var p1);
+        Assert.NotNull(first);
+        Assert.Null(p1);
+        string? got = null;
+        using var called = new ManualResetEventSlim();
+        first!.Listen(s => { got = s; called.Set(); return true; });
+
+        var second = SingleInstance.TryAcquire(file, "Live", out var p2);
+
+        Assert.Null(second);
+        Assert.Null(p2);
+        Assert.True(called.Wait(TimeSpan.FromSeconds(5)));
+        Assert.Equal("Live", got);
+    }
+
+    [Fact]
+    public void Second_instance_reports_a_hanging_first_editor()
+    {
+        var old = SingleInstance.Timeout;
+        SingleInstance.Timeout = TimeSpan.FromMilliseconds(600);
+        try
+        {
+            var file = Path.Combine(Path.GetTempPath(), $"jce-si-{Guid.NewGuid():N}.json");
+            using var first = SingleInstance.TryAcquire(file, null, out _);
+            // hört gar nicht zu = hängt
+            Assert.Null(SingleInstance.TryAcquire(file, null, out var problem));
+            Assert.Contains("reagiert aber nicht", problem);
+
+            // hört zu, aber das Fenster meldet sich nicht (UI-Thread hängt)
+            first!.Listen(_ => false);
+            Assert.Null(SingleInstance.TryAcquire(file, null, out var problem2));
+            Assert.Contains("reagiert aber nicht", problem2);
+        }
+        finally { SingleInstance.Timeout = old; }
+    }
+
+    [Fact]
+    public void Exception_in_activate_does_not_stop_listening()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"jce-si-{Guid.NewGuid():N}.json");
+        using var first = SingleInstance.TryAcquire(file, null, out _);
+        var calls = 0;
+        first!.Listen(_ => ++calls == 1 ? throw new InvalidOperationException("Fenster weg") : true);
+
+        Assert.Null(SingleInstance.TryAcquire(file, null, out var p1));
+        Assert.NotNull(p1); // erster Aufruf: Fehler im Callback → "reagiert nicht"
+        Assert.Null(SingleInstance.TryAcquire(file, null, out var p2));
+        Assert.Null(p2);    // zweiter Aufruf: hört noch zu, alles gut
+    }
+
     // ---------------------------------------------------------------- atomares Schreiben
 
     [Fact]

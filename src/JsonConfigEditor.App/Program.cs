@@ -103,9 +103,14 @@ public static partial class Program
             catch (ArgumentException) { return ExitCodes.Ok; } // aufrufende App ist schon weg
         }
 
-        using var single = SingleInstance.TryAcquire(paths.UserFile, cmd.Options.InitialSection);
+        using var single = SingleInstance.TryAcquire(paths.UserFile, cmd.Options.InitialSection, out var otherProblem);
         if (single == null)
         {
+            if (otherProblem != null)
+            {
+                Log.Warn("Schon offen, reagiert aber nicht: " + paths.UserFile);
+                return Fail(otherProblem, ExitCodes.Crash, gui: true);
+            }
             Log.Info("Schon offen, vorhandenes Fenster aktiviert: " + paths.UserFile);
             return ExitCodes.Ok;
         }
@@ -126,7 +131,9 @@ public static partial class Program
             }
         };
 
-        single.Listen(section => app.Dispatcher.BeginInvoke(() => window.Activate(section)));
+        // "ok" nur, wenn der UI-Thread das Fenster wirklich nach vorne holt; hängt er, erfährt das der zweite Aufruf
+        single.Listen(section => app.Dispatcher.BeginInvoke(() => window.Activate(section))
+            .Wait(SingleInstance.Timeout - TimeSpan.FromMilliseconds(500)) == System.Windows.Threading.DispatcherOperationStatus.Completed);
 
         if (owner != null)
         {

@@ -57,14 +57,11 @@ public static class ConfigWriter
         }
 
         var (root, before) = ReadUser(doc);
-        JsonObject metadata;
-        if (root.TryGetPropertyValue(ConfigDocument.EditorMetadataKey, out var metadataNode))
+        // _jsonConfigEditor gehört dem Editor: ist es kaputt (von Hand "favorites": "x" o. ä.), wird es ersetzt.
+        // Beim Lesen wurde es schon mit Hinweis ignoriert, hier also kein Grund, das Speichern scheitern zu lassen.
+        if (!root.TryGetPropertyValue(ConfigDocument.EditorMetadataKey, out var metadataNode) || metadataNode is not JsonObject metadata)
         {
-            metadata = metadataNode as JsonObject
-                ?? throw new InvalidOperationException($"User-Datei: {ConfigDocument.EditorMetadataKey} ist kein Objekt.");
-        }
-        else
-        {
+            if (metadataNode != null) Log.Warn($"{ConfigDocument.EditorMetadataKey} in {doc.Paths.UserFile} war kein Objekt, wird ersetzt");
             metadata = JsonText.NewObject();
             root[ConfigDocument.EditorMetadataKey] = metadata;
         }

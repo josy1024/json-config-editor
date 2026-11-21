@@ -46,7 +46,7 @@ JsonConfigEditor.exe --base "C:\Program Files\MeineApp\appsettings.json" --app M
 | `--list` | bekannte Apps ausgeben |
 | `--version`, `--help` | |
 
-Exit-Codes: `0` OK, `1` unerwarteter Fehler, `2` Datei kaputt, `3` Parameterfehler, `4` Validierung fehlgeschlagen. Pro User-Datei läuft nur ein Fenster, ein zweiter Aufruf holt es nach vorne.
+Exit-Codes: `0` OK, `1` unerwarteter Fehler, `2` Datei kaputt, `3` Parameterfehler, `4` Validierung fehlgeschlagen. Pro User-Datei läuft nur ein Fenster, ein zweiter Aufruf holt es nach vorne. Reagiert das offene Fenster nicht (hängt), sagt der zweite Aufruf das nach ca. 3 Sekunden (Exit `1`), statt sich still zu beenden.
 
 ### Ohne Parameter (Doppelklick)
 
