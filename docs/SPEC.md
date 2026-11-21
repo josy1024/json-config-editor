@@ -9,12 +9,14 @@ Antwort: Ein generischer Editor, der die Werks-Config einer App liest, Schalter,
 ## 1. Ziel und Nicht-Ziel
 
 Ziel:
+
 * appsettings-artige JSON-Dateien (Format von `Microsoft.Extensions.Configuration`) übersichtlich bearbeiten.
 * Layer-bewusst: Werks-Defaults, IT-Vorgaben, eigene Werte. Man sieht immer, woher ein Wert kommt.
 * Geschrieben wird nur die User-Datei, und nur das, was vom Default abweicht.
 * Generisch: jede App kann den Editor nutzen, mit oder ohne eigene Beschreibung (Descriptor).
 
 Nicht-Ziel in v1:
+
 * Die Basisdatei (`appsettings.json` neben der exe) ändern.
 * ProgramData schreiben (IT-Admin-Modus kommt später).
 * Beliebiges JSON-Schema, beliebige JSON-Dateien.
@@ -25,7 +27,7 @@ Nicht-Ziel in v1:
 Solution `JsonConfigEditor.sln`, .NET 10.
 
 | Projekt | Ziel | Inhalt |
-|---|---|---|
+| --- | --- | --- |
 | `JsonConfigEditor.Core` | net10.0 | Layer laden, Auto-Erkennung, Descriptor, Feldmodell, Validierung, Sparse-Write, atomares Speichern. Keine UI. |
 | `JsonConfigEditor.Wpf` | net10.0-windows (DLL) | `ConfigEditorView` (UserControl), `ConfigEditorWindow`, Fluent-Styles, Feld-Controls |
 | `JsonConfigEditor` | net10.0-windows (WinExe) | dünner Host: Kommandozeile lesen, Fenster zeigen |
@@ -38,7 +40,7 @@ UI-Technik: WPF mit dem Fluent-Theme von .NET (hell/dunkel folgt Windows). Optik
 Drei Ebenen, die untere überschreibt die obere:
 
 | # | Ebene | Pfad (Beispiel) | Im Editor |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | **Base** | `appsettings.json` neben der App | nur lesen |
 | 2 | **Machine** | `%ProgramData%\<App>\appsettings.json` | nur lesen |
 | 3 | **User** | `%APPDATA%\<App>\appsettings.local.json` | **einzige Datei, die geschrieben wird** |
@@ -57,6 +59,7 @@ Gesperrte Werte: Steht in der Machine-Datei ein Abschnitt `"Locked"`, gelten die
 * Wichtig: Der Editor zeigt die Sperre nur an. Die App muss `Locked` beim Laden selbst als letzte Ebene drüberlegen, sonst kann jemand die User-Datei von Hand ändern.
 
 Pro Feld zeigt der Editor:
+
 * den **wirksamen Wert**,
 * die **Herkunft**: Standard / IT-Vorgabe / IT gesperrt / eigener Wert,
 * ↺ **Zurücksetzen**: nimmt den Key aus der User-Datei, dann gilt wieder der Wert darunter.
@@ -66,13 +69,14 @@ Pro Feld zeigt der Editor:
 Ohne Descriptor baut der Editor die Oberfläche aus der Base-Datei.
 
 Beschreibungen aus Kommentaren:
+
 * Base wird zusätzlich mit `Utf8JsonReader` und `JsonCommentHandling.Allow` gelesen.
 * `//`-Zeilen direkt vor einem Key werden zur Beschreibung des Felds. Viele Apps (z. B. PraxisRecorder) haben ihre Hilfetexte so schon in der `appsettings.json` stehen.
 
 Typen:
 
 | JSON | Feldtyp | Bedienelement |
-|---|---|---|
+| --- | --- | --- |
 | `true` / `false` | bool | Schalter (Toggle) |
 | Zahl ohne Punkt | int | Zahlenfeld, nur ganze Zahlen |
 | Zahl mit Punkt | number | Zahlenfeld, Dezimal (in JSON immer Punkt, Anzeige nach Windows-Kultur) |
@@ -84,6 +88,7 @@ Typen:
 Pfad-artig heißt: Key endet auf `Path`, `Dir`, `Directory`, `Folder` oder `File`, **oder** der Wert enthält `\`, `/`, `%VAR%` oder einen Laufwerksbuchstaben (`C:`).
 
 Sonderfälle:
+
 * Keys mit `_` vorne (`_hinweis`, `_verfuegbar`, `_autoconfig`) sind Metadaten: kein Feld. `_hinweis` wird als Hinweistext über dem Abschnitt gezeigt. Beim Schreiben bleiben sie unverändert erhalten.
 * Keys, die nur in der User-Datei stehen (nicht in Base): Abschnitt "Sonstige", anzeigen und editierbar, nie löschen.
 
@@ -115,18 +120,21 @@ Optional. Die App legt ihn neben ihre `appsettings.json` und liefert ihn mit aus
 ```
 
 ### Block `app`
+
 * `base`: Pfad zur Basisdatei, **relativ zum Ordner des Descriptors** (Default `appsettings.json`). Damit klappt's egal, wohin die App installiert ist.
 * `userFile`, `machineFile`: mit Umgebungsvariablen. Fehlen sie, gilt `%APPDATA%\<name>\appsettings.local.json` bzw. `%ProgramData%\<name>\appsettings.json`.
 * `title`: Fenstertitel.
 
 ### Block `sections`
+
 Key = Abschnittsname aus der JSON. Attribute: `label`, `order`, `icon`, `description`, `hidden`.
 
 ### Block `fields`
+
 Keys im Format `Abschnitt:Key` wie bei `IConfiguration` (verschachtelt: `A:B:C`).
 
 | Attribut | Bedeutung |
-|---|---|
+| --- | --- |
 | `label` | Anzeigename (Default: Key, CamelCase aufgetrennt) |
 | `description` | Hilfetext (Default: Kommentar aus Base) |
 | `type` | `bool`, `int`, `number`, `string`, `path` |
@@ -147,12 +155,14 @@ Keys im Format `Abschnitt:Key` wie bei `IConfiguration` (verschachtelt: `A:B:C`)
 Reserviert für später (v1 ignoriert sie mit Warnung im Log): `options`, `optionsFromGlob`, `list`, `provider`.
 
 ### Favoriten
+
 * `favorites` = Liste von Keys, in der gewünschten Reihenfolge.
 * Werden als eigener Block **"Favoriten" ganz oben** gezeigt (wie "Neu in Labs" im Vorbild). Das Feld bleibt zusätzlich in seinem Abschnitt, beide zeigen denselben Wert.
 * Favorit schlägt `hidden` und `advanced` (Widerspruch → Warnung im Log, Favorit gewinnt).
 * Ohne Descriptor gibt's keinen Favoriten-Block.
 
 ### Validierung des Descriptors
+
 * Key im Descriptor, den es in Base nicht gibt → Warnung im Log, Feld wird trotzdem gezeigt (Typ aus Descriptor, sonst string).
 * `--validate` meldet solche Fehler mit Exit-Code (für CI der App).
 
@@ -185,6 +195,7 @@ Reserviert für später (v1 ignoriert sie mit Warnung im Log): `options`, `optio
 * Karte: Label (fett), Beschreibung, Bedienelement rechts, Herkunfts-Badge, ↺ (nur bei eigenem Wert), 🔒 bei readonly/gesperrt mit Tooltip "gesperrt durch IT", ⟳ bei `restartRequired`.
 
 Bedienelemente:
+
 * **Bool**: Toggle, wirkt sofort.
 * **Zahl**: NumberBox. Grenzen aus `min`/`max`. Ungültig → roter Rahmen + Text, wird **nicht** gespeichert. `zeroMeans` steht als graue Info daneben, wenn 0.
 * **Text**: TextBox, gespeichert beim Verlassen des Felds oder nach Debounce.
@@ -223,7 +234,7 @@ JsonConfigEditor.exe --base <appsettings.json> [--user <pfad>] [--machine <pfad>
 ```
 
 | Parameter | Bedeutung |
-|---|---|
+| --- | --- |
 | `<pfad>` (positional) | `*.editor.json` (oder JSON mit `formatVersion`), `appsettings.json`, `*.local.json` (Basis daneben, diese Datei wird beschrieben) oder Ordner einer App |
 | `--descriptor <pfad>` | Descriptor ausdrücklich angeben |
 | `--base` | Basisdatei (überschreibt Descriptor) |
@@ -247,7 +258,7 @@ JsonConfigEditor.exe --base <appsettings.json> [--user <pfad>] [--machine <pfad>
 2. Sonst kommt die **Startseite** mit allen bekannten Apps, aus diesen Quellen (bei Doppelten gewinnt die obere):
 
 | Quelle | Datei | Badge |
-|---|---|---|
+| --- | --- | --- |
 | IT | `%ProgramData%\JsonConfigEditor\apps.json` | IT |
 | Paket | `apps.json` neben `JsonConfigEditor.exe` | Mitgeliefert |
 | User | `%APPDATA%\JsonConfigEditor\apps.json` | Meine Liste |
@@ -327,6 +338,7 @@ AGPL-3.0-or-later (LICENSE im Repo).
 ## 12. Akzeptanz und Tests
 
 Unit-Tests (Core):
+
 * Auto-Erkennung mit der echten `appsettings.json` von PraxisRecorder: alle Abschnitte da, `//`-Kommentare als Beschreibung, `Output:RootPath`, `Models:Directory`, `Models:VocabularyFile` als Pfad, Bools als Schalter, `PreferredDevices` als Array-Anzeige.
 * Layer: Base < Machine < User < Machine:Locked.
 * Sparse-Write: Toggle ändern → User-Datei enthält genau diesen Key. Zurückstellen → Key weg, leerer Abschnitt weg.
@@ -337,6 +349,7 @@ Unit-Tests (Core):
 * Kommandozeile: `--validate`, `--version`, Exit-Codes.
 
 Manuell:
+
 * UI hell/dunkel, Fenster schmal/breit, Tastaturbedienung, Screenreader liest Labels.
 * App läuft parallel und lädt nach dem Speichern neu (PraxisRecorder-Watcher).
 
@@ -350,3 +363,13 @@ Manuell:
 * Registry/ADMX-Policies (`HKLM\Software\Policies\<App>`).
 * NuGet-Paket für die DLL, winget-Paket für die EXE.
 * Mehrsprachigkeit (UI-Texte, Descriptor-Labels pro Sprache).
+
+## 14. BUGnFeatures
+
+* Favoriten sternchen bei jedem Element Outline = kein Favirit, Solid = Favorit
+* Favoriten werden bei der Local Config der APP gespeichert
+* Wenn ich in ein Einstellungen Scrolle, werden Die Abschnitte auch vom aktuellen Abschnitt markiert
+* Abschnitte Links lösen kurze "Bewegung" aus
+* Wenn Erweitert anzeigen, kann im Admin modus ausgewählt werden, was erweitert ist? => einfaches Rückschreiben
+* Erweitert sind dann mit "PI" Markiert, Text Kursiv? - Andere ideen?
+* Erweitert Farblich besser kennzeichnen
