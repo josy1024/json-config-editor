@@ -15,6 +15,26 @@
     <!-- framework-dependent: braucht die .NET 10 Desktop Runtime, dafür ist das Zip klein -->
     <SelfContained>false</SelfContained>
   </PropertyGroup>
+  <!-- Manifest-Version = App-Version: Kopie mit gestempelter Version in obj, die wird eingebettet.
+       Vorabversionen (0.0.0-dev.12) werden auf die vier Zahlen gekürzt, die das Manifest verlangt. -->
+  <Target Name="StampManifestVersion" BeforeTargets="_SetEmbeddedWin32ManifestProperties">
+    <PropertyGroup>
+      <_ManifestVersion>$([System.Text.RegularExpressions.Regex]::Match('$(Version)', '^\d+(\.\d+){0,3}').Value)</_ManifestVersion>
+      <_ManifestVersion Condition="!$(_ManifestVersion.Contains('.'))">$(_ManifestVersion).0</_ManifestVersion>
+      <_ManifestVersion Condition="$([System.Text.RegularExpressions.Regex]::Matches('$(_ManifestVersion)', '\.').Count) == 1">$(_ManifestVersion).0</_ManifestVersion>
+      <_ManifestVersion Condition="$([System.Text.RegularExpressions.Regex]::Matches('$(_ManifestVersion)', '\.').Count) == 2">$(_ManifestVersion).0</_ManifestVersion>
+      <_ManifestText>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\app.manifest'))</_ManifestText>
+      <_ManifestText>$([System.Text.RegularExpressions.Regex]::Replace('$(_ManifestText)', '(&lt;assemblyIdentity\s+version=")[^"]*', '${1}$(_ManifestVersion)'))</_ManifestText>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)app.manifest" Lines="$(_ManifestText)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <PropertyGroup>
+      <ApplicationManifest>$(IntermediateOutputPath)app.manifest</ApplicationManifest>
+    </PropertyGroup>
+    <ItemGroup>
+      <FileWrites Include="$(IntermediateOutputPath)app.manifest" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <Using Include="System.IO" />
   </ItemGroup>

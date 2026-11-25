@@ -2,6 +2,10 @@
 
 Was sich pro Version geändert hat. Neueste oben. Releases mit Zip und SHA256: [GitHub Releases](https://github.com/josy1024/json-config-editor/releases).
 
+## Unveröffentlicht
+
+* Build: Die Version im exe-Manifest kommt jetzt automatisch aus der App-Version (`Directory.Build.props` bzw. Release-Tag). Bisher stand dort fix 1.0.0.0
+
 ## v0.4.3 – 25.11.2026
 
 Neue App-Favoriten erreichen auch User mit eigenen Favoriten.

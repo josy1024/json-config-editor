@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
-  <assemblyIdentity version="1.0.0.0" name="JsonConfigEditor" />
+  <!-- version setzt der Build aus $(Version) (Directory.Build.props bzw. Release-Tag), hier nicht pflegen -->
+  <assemblyIdentity version="0.0.0.0" name="JsonConfigEditor" />
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
     <security>
       <requestedPrivileges xmlns="urn:schemas-microsoft-com:asm.v3">
