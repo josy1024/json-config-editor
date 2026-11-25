@@ -2,7 +2,9 @@
 
 Was sich pro Version geändert hat. Neueste oben. Releases mit Zip und SHA256: [GitHub Releases](https://github.com/josy1024/json-config-editor/releases).
 
-## Unveröffentlicht
+## v0.4.2 – 25.11.2026
+
+Listen sortieren, z. B. die Mikro-Prioliste von PraxisRecorder.
 
 * Listen sortieren: Listen zeigen eine nummerierte Zeile pro Eintrag (Text = erste Text-Eigenschaft, z. B. `Name`), ▲ ▼ oder Alt+↑ ↓ ändern die Reihenfolge. Der Editor schreibt die ganze Liste in die User-Datei, jeder Eintrag bleibt unverändert (`Id`, `LastSeen` …). Hat die App die Liste inzwischen selbst geändert, wird der Eintrag per Inhalt wiedergefunden oder es kommt "bitte nochmal" statt einer falschen Reihenfolge
 * Descriptor: neues Feldattribut `list` mit `reorder`, `itemLabel`, `itemDetail`. `list` ist damit nicht mehr "reserviert"
