@@ -35,6 +35,10 @@
         "Name": "Fallback",
         "Url": "https://fallback.example.invalid"
       }
+    ],
+    "Regions": [
+      "eu-west",
+      "eu-central"
     ]
   },
   "Internal": {

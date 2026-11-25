@@ -10,7 +10,8 @@
   "favorites": [
     "General:Enabled",
     "Paths:OutputFolder",
-    "Runtime:TimeoutSeconds"
+    "Runtime:TimeoutSeconds",
+    "Collections:Endpoints"
   ],
   "sections": {
     "General": {
@@ -35,7 +36,7 @@
       "label": "Collections",
       "order": 4,
       "icon": "list",
-      "description": "Array and object values edited as JSON."
+      "description": "Lists: reorder with ▲ ▼ or Alt+↑ ↓, add or remove entries in the text editor."
     },
     "Internal": {
       "label": "Internal",
@@ -151,6 +152,20 @@
       "min": 1,
       "max": 100,
       "unit": "items"
+    },
+    "Collections:Tags": {
+      "label": "Tags",
+      "description": "List of strings without a list block: sortable by default, the value is the row text."
+    },
+    "Collections:Endpoints": {
+      "label": "Endpoints",
+      "description": "Priority list of objects: row text from itemLabel, small detail line from itemDetail.",
+      "list": { "itemLabel": "Name", "itemDetail": ["Url"] }
+    },
+    "Collections:Regions": {
+      "label": "Regions",
+      "description": "Fixed order (list.reorder = false): shown, but no ▲ ▼.",
+      "list": { "reorder": false }
     }
   }
 }

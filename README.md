@@ -198,6 +198,10 @@ dotnet run --project src/JsonConfigEditor.App -- samples/praxisrecorder/appsetti
 
 Release: Tag `v*` pushen, GitHub Actions baut `JsonConfigEditor-<ver>-win-x64.zip` (framework-dependent, .NET 10 Desktop Runtime nötig) und `SHA256SUMS.txt`.
 
+## Autor
+
+[josy1024](https://github.com/josy1024/)
+
 ## Lizenz
 
 AGPL-3.0-or-later, siehe [LICENSE](LICENSE). Aufruf als separate EXE macht die aufrufende App nicht zum abgeleiteten Werk. Kommerzielle Lizenz auf Anfrage.
