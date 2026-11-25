@@ -70,6 +70,8 @@ public sealed partial class ConfigDocument
         public readonly List<string> Order = [];
         public readonly Dictionary<string, string> Hints = new(StringComparer.OrdinalIgnoreCase);
         public List<string>? Favorites;
+        /// <summary>Descriptor-Favoriten, die beim letzten Speichern der eigenen Favoriten bekannt waren. null = alte Datei ohne Merker.</summary>
+        public List<string>? KnownDescriptorFavorites;
         public string? FavoritesWarning;
     }
 
@@ -130,6 +132,9 @@ public sealed partial class ConfigDocument
             user.FavoritesWarning = $"User-Datei: {EditorMetadataKey} muss ein Objekt sein; gespeicherte Favoriten werden ignoriert.";
             return;
         }
+        if (metadata["descriptorFavorites"] is JsonArray known)
+            user.KnownDescriptorFavorites = known.OfType<JsonValue>()
+                .Select(v => v.TryGetValue<string>(out var k) ? k : null).Where(k => !string.IsNullOrWhiteSpace(k)).Cast<string>().ToList();
         if (!metadata.TryGetPropertyValue("favorites", out var favoritesNode)) return;
         if (favoritesNode is not JsonArray favorites)
         {
@@ -245,7 +250,7 @@ public sealed partial class ConfigDocument
         // Abschnitte aus dem Descriptor oder mit _hinweis, die (noch) keine Felder haben, braucht keiner
         _sections.AddRange(sections.Values.OrderBy(s => s.Order).ThenBy(s => s.Label, StringComparer.CurrentCultureIgnoreCase));
 
-        var favoriteKeys = layers.User.Favorites ?? d?.Favorites ?? [];
+        var favoriteKeys = EffectiveFavorites(layers.User, d);
         foreach (var key in favoriteKeys)
         {
             if (!_byKey.TryGetValue(key, out var f))
@@ -275,10 +280,41 @@ public sealed partial class ConfigDocument
     {
         var layers = ReadLayers();
         foreach (var f in _fields) SetValues(f, layers);
-        SetFavorites(layers.User.Favorites ?? Descriptor?.Favorites ?? []);
+        SetFavorites(EffectiveFavorites(layers.User, Descriptor));
         var all = layers.Base.Order.Concat(layers.Machine.Order).Concat(layers.Locked.Order).Concat(layers.User.Order);
         return all.Any(k => !_byKey.ContainsKey(k));
     }
+
+    /// <summary>
+    /// Eigene Favoriten gewinnen. Hat die App im Descriptor später einen Favoriten dazugenommen, den es beim Speichern
+    /// der eigenen Liste noch nicht gab, kommt er trotzdem dazu (an seiner Stelle aus dem Descriptor).
+    /// Was der User selbst abgewählt hat, bleibt weg. Alte Dateien ohne Merker: alle fehlenden Descriptor-Favoriten kommen dazu.
+    /// </summary>
+    internal static List<string> EffectiveFavorites(IReadOnlyList<string>? user, IReadOnlyList<string>? known, IReadOnlyList<string> descriptor)
+    {
+        if (user == null) return descriptor.ToList();
+        var result = user.ToList();
+        var have = new HashSet<string>(result, StringComparer.OrdinalIgnoreCase);
+        var knownSet = new HashSet<string>(known ?? [], StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < descriptor.Count; i++)
+        {
+            var key = descriptor[i];
+            if (have.Contains(key) || knownSet.Contains(key)) continue;
+            // Position: hinter dem letzten Descriptor-Vorgänger, der in der eigenen Liste steht, sonst ganz vorne
+            var at = 0;
+            for (var j = i - 1; j >= 0; j--)
+            {
+                var idx = result.FindIndex(k => string.Equals(k, descriptor[j], StringComparison.OrdinalIgnoreCase));
+                if (idx >= 0) { at = idx + 1; break; }
+            }
+            result.Insert(at, key);
+            have.Add(key);
+        }
+        return result;
+    }
+
+    private static List<string> EffectiveFavorites(Layer user, EditorDescriptor? d) =>
+        EffectiveFavorites(user.Favorites, user.KnownDescriptorFavorites, d?.Favorites ?? []);
 
     internal void SetFavorites(IEnumerable<string> keys)
     {

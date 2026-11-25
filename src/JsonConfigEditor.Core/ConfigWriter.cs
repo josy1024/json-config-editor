@@ -104,6 +104,10 @@ public static class ConfigWriter
         var array = new JsonArray();
         foreach (var key in favorites) array.Add(JsonValue.Create(key));
         metadata["favorites"] = array;
+        // Merker: diese App-Favoriten waren schon da. Kommt später einer dazu, taucht er auch bei eigener Liste auf.
+        var known = new JsonArray();
+        foreach (var key in doc.Descriptor?.Favorites ?? []) known.Add(JsonValue.Create(key));
+        metadata["descriptorFavorites"] = known;
         Save(doc, root, before);
         doc.SetFavorites(favorites);
     }

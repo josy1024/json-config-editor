@@ -204,6 +204,7 @@ Default:
 * Werden als eigener Block **"Favoriten" ganz oben** gezeigt (wie "Neu in Labs" im Vorbild). Das Feld bleibt zusätzlich in seinem Abschnitt, beide zeigen denselben Wert.
 * Favorit schlägt `hidden` und `advanced` (Widerspruch → Warnung im Log, Favorit gewinnt).
 * Eigene Favoriten stehen in der User-Datei unter `_jsonConfigEditor.favorites`. Fehlt dieser Eintrag, gelten die Favoriten des Descriptors; eine vorhandene leere Liste entfernt auch alle Descriptor-Favoriten für diesen User.
+* Neue App-Favoriten kommen auch bei eigener Liste dazu: Beim Speichern der eigenen Favoriten merkt sich der Editor die Descriptor-Favoriten (`_jsonConfigEditor.descriptorFavorites`). Nimmt die App später einen Favoriten in den Descriptor auf, erscheint er beim User an seiner Stelle aus dem Descriptor. Was der User selbst abgewählt hat (steht im Merker), bleibt weg. Alte User-Dateien ohne Merker: alle fehlenden Descriptor-Favoriten kommen dazu, ab dem nächsten Stern-Klick gilt der Merker.
 * Ohne Descriptor erscheint der Favoriten-Block, sobald mindestens ein Feld als Favorit markiert wurde.
 
 ### Validierung des Descriptors

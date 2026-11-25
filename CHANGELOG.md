@@ -2,6 +2,10 @@
 
 Was sich pro Version geändert hat. Neueste oben. Releases mit Zip und SHA256: [GitHub Releases](https://github.com/josy1024/json-config-editor/releases).
 
+## Unveröffentlicht
+
+* Neue App-Favoriten kommen auch bei eigenen Favoriten dazu. Bisher galt: Hat der User einmal einen Stern geklickt, sieht er keine neuen Descriptor-Favoriten mehr (z. B. die Mikro-Prioliste in PraxisRecorder). Jetzt merkt sich der Editor die App-Favoriten (`_jsonConfigEditor.descriptorFavorites`), neue erscheinen an ihrer Stelle, selbst abgewählte bleiben weg
+
 ## v0.4.2 – 25.11.2026
 
 Listen sortieren, z. B. die Mikro-Prioliste von PraxisRecorder.

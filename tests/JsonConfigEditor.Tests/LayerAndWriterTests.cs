@@ -96,6 +96,42 @@ public class LayerAndWriterTests
         Assert.Equal(["Audio", "Models", "Fremd", "Live"], after.Select(p => p.Key));
     }
 
+    [Theory]
+    // keine eigene Liste: Descriptor
+    [InlineData(null, null, "A,B,C", "A,B,C")]
+    // alte Datei ohne Merker: neuer App-Favorit A kommt an seine Stelle (vorne)
+    [InlineData("B,C", null, "A,B,C", "A,B,C")]
+    // Merker kennt A, B, C: User hat A abgewählt, bleibt weg. Neues D kommt hinter C
+    [InlineData("C,B", "A,B,C", "A,B,C,D", "C,D,B")]
+    // eigene Favoriten bleiben in eigener Reihenfolge, nichts Neues
+    [InlineData("X,B", "A,B", "A,B", "X,B")]
+    public void Neue_App_Favoriten_kommen_auch_bei_eigener_Liste_dazu(string? user, string? known, string descriptor, string expected)
+    {
+        static List<string>? L(string? s) => s?.Split(',').ToList();
+        Assert.Equal(L(expected), ConfigDocument.EffectiveFavorites(L(user), L(known), L(descriptor)!));
+    }
+
+    [Fact]
+    public void Eigene_Favoriten_merken_sich_die_App_Favoriten()
+    {
+        using var t = new TempDir().WithBase(Base)
+            .WithDescriptor("""{ "favorites": ["Output:RootPath", "Live:Model"] }""")
+            .WithUser("""{ "_jsonConfigEditor": { "favorites": ["Live:Model"] } }""");
+        var doc = t.Load();
+        // alte Datei ohne Merker: RootPath (neu in der App) kommt dazu
+        Assert.Equal(["Output:RootPath", "Live:Model"], doc.Favorites.Select(f => f.Key));
+
+        // User wählt RootPath ab: Merker wird geschrieben, beim nächsten Laden bleibt es weg
+        ConfigWriter.SetFavorites(doc, ["Live:Model"]);
+        var meta = JsonNode.Parse(t.UserText)!["_jsonConfigEditor"]!;
+        Assert.Equal(["Output:RootPath", "Live:Model"], meta["descriptorFavorites"]!.AsArray().Select(v => (string)v!).ToArray());
+        Assert.Equal(["Live:Model"], t.Load().Favorites.Select(f => f.Key));
+
+        // App nimmt Live:Enabled neu dazu: taucht auf, RootPath bleibt abgewählt
+        t.WithDescriptor("""{ "favorites": ["Output:RootPath", "Live:Enabled", "Live:Model"] }""");
+        Assert.Equal(["Live:Enabled", "Live:Model"], t.Load().Favorites.Select(f => f.Key));
+    }
+
     [Fact]
     public void Favoriten_werden_in_User_Datei_gespeichert_und_beim_Reload_gelesen()
     {
