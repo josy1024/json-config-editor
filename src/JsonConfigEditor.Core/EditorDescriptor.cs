@@ -187,9 +187,21 @@ public sealed class FieldDescriptor
     /// <summary>"base" = relativ zum Ordner der Basisdatei auflösen.</summary>
     public string? RelativeTo { get; set; }
     public bool? WarnCloudFolder { get; set; }
+    /// <summary>Nur bei Arrays: Umsortieren und Zeilentext.</summary>
+    public ListDescriptor? List { get; set; }
 
-    /// <summary>Unbekannte oder für später reservierte Attribute (options, list …).</summary>
+    /// <summary>Unbekannte oder für später reservierte Attribute (options, provider …).</summary>
     [JsonExtensionData] public Dictionary<string, JsonElement>? Extra { get; set; }
 
-    internal static readonly string[] Reserved = ["options", "optionsFromGlob", "list", "provider"];
+    internal static readonly string[] Reserved = ["options", "optionsFromGlob", "provider"];
+}
+
+public sealed class ListDescriptor
+{
+    /// <summary>▲ ▼ anbieten. Default true.</summary>
+    public bool? Reorder { get; set; }
+    /// <summary>Eigenschaft für den Zeilentext. Default: erste String-Eigenschaft.</summary>
+    public string? ItemLabel { get; set; }
+    /// <summary>Eigenschaften, die klein unter dem Zeilentext stehen.</summary>
+    public List<string>? ItemDetail { get; set; }
 }

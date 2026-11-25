@@ -15,6 +15,7 @@ Windows, WPF mit Fluent-Theme (hell/dunkel folgt Windows). Spec: [docs/SPEC.md](
 * **Auto-Erkennung**: `//`-Kommentare in der `appsettings.json` werden zu Beschreibungen, Pfade werden am Key oder Wert erkannt.
 * **Descriptor** `appsettings.editor.json` (optional): Labels, Favoriten oben, Einheiten, Grenzen, read-only, versteckt, erweitert, Neustart-Hinweis, Pfadprüfung inkl. OneDrive-Warnung.
 * **Sofort speichern**, atomar. Unbekannte Keys, `_hinweis`-Metadaten und Listen in der User-Datei bleiben erhalten.
+* **Listen sortieren**: Listen (z. B. eine Mikro-Prioliste) zeigt der Editor mit einer nummerierten Zeile pro Eintrag, ▲ ▼ bzw. Alt+↑ ↓ ändern die Reihenfolge. Zeilentext ist die erste Text-Eigenschaft des Eintrags (z. B. `Name`), alle anderen Eigenschaften bleiben unverändert. Hinzufügen und Löschen gehen weiter im Texteditor.
 * **Eigene Favoriten**: Stern ☆ an jedem Feld. Gespeichert in der User-Datei unter `_jsonConfigEditor.favorites`, also pro User. Solange der User keine eigenen hat, gelten die Favoriten aus dem Descriptor; eine leere eigene Liste blendet auch die Descriptor-Favoriten aus.
 * Suche mit dynamischer Trefferzahl, Filter pro Abschnitt sowie "Alle", "Geändert" und "Favoriten"-Ansicht; Abschnitte ohne sichtbare Treffer werden ausgeblendet. Strg+F öffnet die Suche.
 * **F3**: Debug-Infos mit Aufruf (Kommandozeile), Version, .NET, welche JSON-Dateien benutzt werden (mit Größe und Datum), IT-Sperren, Warnungen, Log-Pfad und Inhalt der User-Datei. "Kopieren" für Tickets, Esc schließt. Die Versionszeile links unten führt zum [GitHub-Projekt](https://github.com/josy1024/json-config-editor).
@@ -142,12 +143,13 @@ Liegt neben der `appsettings.json` der App und wird mit ihr ausgeliefert. Alles 
     "Output:RootPath": { "type": "path", "pathKind": "folder", "emptyMeans": "Dokumente\\PraxisRecorder", "warnCloudFolder": true },
     "Recording:MaxMinutes": { "type": "number", "unit": "min", "min": 0, "zeroMeans": "unbegrenzt" },
     "Models:Backend": { "restartRequired": true },
-    "Recording:FlushSeconds": { "advanced": true }
+    "Recording:FlushSeconds": { "advanced": true },
+    "Audio:PreferredDevices": { "list": { "itemLabel": "Name", "itemDetail": ["LastSeen"] } }
   }
 }
 ```
 
-Feldattribute: `label`, `description`, `type` (`bool`, `int`, `number`, `string`, `path`), `readonly`, `hidden`, `advanced`, `min`, `max`, `unit`, `zeroMeans`, `emptyMeans`, `restartRequired`, `pathKind` (`file`, `folder`), `mustExist`, `expandEnv`, `relativeTo` (`base`), `warnCloudFolder`. Abschnitt-Icons: `mic`, `folder`, `record`, `shield`, `model`, `waveform`, `quality`, `archive`, `tools`, `clock`, `globe`, `user` …
+Feldattribute: `label`, `description`, `type` (`bool`, `int`, `number`, `string`, `path`), `readonly`, `hidden`, `advanced`, `min`, `max`, `unit`, `zeroMeans`, `emptyMeans`, `restartRequired`, `pathKind` (`file`, `folder`), `mustExist`, `expandEnv`, `relativeTo` (`base`), `warnCloudFolder`, bei Listen `list` mit `reorder` (Default `true`), `itemLabel` (Zeilentext), `itemDetail` (kleine Zusatzzeile). Abschnitt-Icons: `mic`, `folder`, `record`, `shield`, `model`, `waveform`, `quality`, `archive`, `tools`, `clock`, `globe`, `user` …
 
 Tipp: Zahlen ohne Punkt in der `appsettings.json` (z. B. `60`) erkennt der Editor als ganze Zahl. Ist in der App ein `double`, im Descriptor `"type": "number"` setzen.
 
@@ -182,7 +184,7 @@ var locked = new ConfigurationBuilder().AddJsonFile(machineFile, optional: true)
 cfg.AddInMemoryCollection(locked.AsEnumerable(makePathsRelative: true).Where(kv => kv.Value != null));
 ```
 
-Listen (JSON-Arrays) führt `IConfiguration` **nach Index** zusammen: Hat die Basis `["a", "b", "c"]` und die User-Datei `["x"]`, kommt `["x", "b", "c"]` heraus. Für Listen, die der User ersetzen soll, deshalb lieber einen Komma-getrennten String nehmen (`"um, äh, ähm"`), den die App selbst aufteilt.
+Listen (JSON-Arrays) führt `IConfiguration` **nach Index** zusammen: Hat die Basis `["a", "b", "c"]` und die User-Datei `["x"]`, kommt `["x", "b", "c"]` heraus. Für Listen, die der User ersetzen soll, deshalb lieber einen Komma-getrennten String nehmen (`"um, äh, ähm"`), den die App selbst aufteilt. Beim Umsortieren schreibt der Editor immer die ganze wirksame Liste in die User-Datei, damit stimmt das Ergebnis auch bei dieser Mischung.
 
 ## Bauen
 

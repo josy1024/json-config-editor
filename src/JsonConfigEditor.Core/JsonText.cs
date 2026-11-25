@@ -80,6 +80,42 @@ public static class JsonText
     private static bool TryDecimal(JsonNode n, out decimal d) =>
         decimal.TryParse(n.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out d);
 
+    /// <summary>
+    /// Obere Ebene über die untere legen wie IConfiguration: Objekte Key für Key (case-insensitive),
+    /// Arrays nach Index, sonst gewinnt oben. Eine leere obere Liste ändert nichts. Liefert immer eine Kopie.
+    /// </summary>
+    public static JsonNode? MergeLikeConfiguration(JsonNode? lower, JsonNode? upper)
+    {
+        if (upper is null) return lower?.DeepClone();
+        switch (lower, upper)
+        {
+            case (JsonObject lo, JsonObject uo):
+            {
+                var result = (JsonObject)lo.DeepClone();
+                foreach (var (k, v) in uo)
+                {
+                    var existing = result.TryGetPropertyValue(k, out var e) ? e : null;
+                    var merged = MergeLikeConfiguration(existing, v);
+                    if (result.ContainsKey(k)) result[k] = merged;
+                    else result.Add(k, merged);
+                }
+                return result;
+            }
+            case (JsonArray la, JsonArray ua):
+            {
+                var result = (JsonArray)la.DeepClone();
+                for (var i = 0; i < ua.Count; i++)
+                {
+                    if (i < result.Count) result[i] = MergeLikeConfiguration(result[i], ua[i]);
+                    else result.Add(ua[i]?.DeepClone());
+                }
+                return result;
+            }
+            default:
+                return upper.DeepClone();
+        }
+    }
+
     /// <summary>Wert unter "A:B:C" holen, null wenn nicht da.</summary>
     public static JsonNode? GetPath(JsonObject root, string key)
     {

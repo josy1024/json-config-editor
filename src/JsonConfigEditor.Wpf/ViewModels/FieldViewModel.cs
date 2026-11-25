@@ -132,7 +132,63 @@ public sealed class FieldViewModel : ObservableObject
         }
     }
 
-    public string ArraySummary => Field.ArrayCount == 1 ? "1 Eintrag" : $"{Field.ArrayCount} Einträge";
+    public string ArraySummary => Field.ArrayCount == 0 ? "Keine Einträge" : Field.ArrayCount == 1 ? "1 Eintrag" : $"{Field.ArrayCount} Einträge";
+
+    // ---------------------------------------------------------------- Liste
+
+    public bool IsList => Field.Kind == FieldKind.Array;
+    public bool HasListItems => IsList && ListItems.Count > 0;
+    public bool CanReorder => Field.CanReorder && !_owner.IsReadOnly && _owner.Document.UserFileError == null;
+    public System.Collections.ObjectModel.ObservableCollection<ListItemViewModel> ListItems { get; } = [];
+
+    private int _selectedListIndex = -1;
+    public int SelectedListIndex
+    {
+        get => _selectedListIndex;
+        set => Set(ref _selectedListIndex, value);
+    }
+
+    private void LoadList()
+    {
+        if (!IsList) return;
+        var items = ConfigList.Items(Field);
+        ListItems.Clear();
+        foreach (var item in items) ListItems.Add(new ListItemViewModel(this, item, items.Count));
+        OnPropertyChanged(nameof(HasListItems));
+        OnPropertyChanged(nameof(ArraySummary));
+        OnPropertyChanged(nameof(CanReorder));
+    }
+
+    /// <summary>Eintrag um <paramref name="delta"/> verschieben. true = verschoben (Fokus wandert mit).</summary>
+    internal bool Move(ListItemViewModel row, int delta)
+    {
+        if (!CanReorder) return false;
+        var to = row.Index + delta;
+        if (to < 0 || to >= ListItems.Count) return false;
+        try
+        {
+            ConfigWriter.MoveItem(_owner.Document, Key, row.Index, row.Item.Node, delta);
+            Error = null;
+            LoadList();
+            _owner.OnFieldSaved(this);
+            RaiseState();
+            SelectedListIndex = to; // Auswahl und Fokus wandern mit (View setzt den Fokus)
+            return true;
+        }
+        catch (ListChangedException ex)
+        {
+            Log.Warn(ex.Message);
+            _owner.ReloadNow();
+            Error = "Liste wurde inzwischen geändert und neu geladen, bitte nochmal.";
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ConfigEditorException or IOException or UnauthorizedAccessException)
+        {
+            // gesperrte Datei: kein Retry, der Klick ist schnell wiederholt und die Liste bleibt, wie sie in der Datei steht
+            Error = "Nicht verschoben: " + ex.Message;
+            Log.Warn($"{Key} nicht verschoben ({_owner.Document.Paths.UserFile}): {ex.Message}");
+        }
+        return false;
+    }
 
     public string? Error
     {
@@ -198,6 +254,7 @@ public sealed class FieldViewModel : ObservableObject
         _text = FieldValidator.Format(Field, CultureInfo.CurrentCulture);
         _error = null;
         CheckPath();
+        LoadList();
         OnAllChanged();
     }
 
@@ -397,5 +454,41 @@ public sealed class FieldViewModel : ObservableObject
         Label.Contains(search, StringComparison.CurrentCultureIgnoreCase)
         || Key.Contains(search, StringComparison.OrdinalIgnoreCase)
         || (Description?.Contains(search, StringComparison.CurrentCultureIgnoreCase) ?? false)
-        || SectionLabel.Contains(search, StringComparison.CurrentCultureIgnoreCase);
+        || SectionLabel.Contains(search, StringComparison.CurrentCultureIgnoreCase)
+        || ListItems.Any(i => i.Label.Contains(search, StringComparison.CurrentCultureIgnoreCase));
+}
+
+/// <summary>Eine Zeile einer Liste mit ▲ ▼.</summary>
+public sealed class ListItemViewModel
+{
+    private readonly FieldViewModel _owner;
+
+    public ListItemViewModel(FieldViewModel owner, ConfigListItem item, int count)
+    {
+        _owner = owner;
+        Item = item;
+        Count = count;
+        UpCommand = new RelayCommand(() => _owner.Move(this, -1), () => CanUp);
+        DownCommand = new RelayCommand(() => _owner.Move(this, +1), () => CanDown);
+    }
+
+    public ConfigListItem Item { get; }
+    public int Index => Item.Index;
+    public int Count { get; }
+    public string Number => $"{Index + 1}.";
+    public string Label => Item.Label;
+    public string? Detail => Item.Detail;
+    public string ToolTip => Item.ToolTip;
+    public bool CanReorder => _owner.CanReorder;
+    public bool CanUp => CanReorder && Index > 0;
+    public bool CanDown => CanReorder && Index < Count - 1;
+    public string AutomationName => $"{Label}, Position {Index + 1} von {Count}";
+    public string UpName => $"{Label} nach oben";
+    public string DownName => $"{Label} nach unten";
+
+    public System.Windows.Input.ICommand UpCommand { get; }
+    public System.Windows.Input.ICommand DownCommand { get; }
+
+    /// <summary>Alt+↑ / Alt+↓ in der Liste.</summary>
+    public bool Move(int delta) => _owner.Move(this, delta);
 }

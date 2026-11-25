@@ -342,6 +342,16 @@ public sealed partial class ConfigDocument
             if (f.Kind == FieldKind.String) f.Kind = FieldKind.Path;
         }
         if (fd.RelativeTo != null) f.RelativeToBase = fd.RelativeTo.Equals("base", StringComparison.OrdinalIgnoreCase);
+        if (fd.List is { } list)
+        {
+            if (f.Kind != FieldKind.Array) _warnings.Add($"Descriptor: {f.Key}.list gilt nur für Listen, ignoriert.");
+            else
+            {
+                f.ListReorder = list.Reorder ?? f.ListReorder;
+                f.ItemLabel = string.IsNullOrWhiteSpace(list.ItemLabel) ? f.ItemLabel : list.ItemLabel;
+                if (list.ItemDetail != null) f.ItemDetail = list.ItemDetail.Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
+            }
+        }
 
         if (fd.Extra is { Count: > 0 })
         {

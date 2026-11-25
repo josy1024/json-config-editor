@@ -57,7 +57,7 @@ Gesperrte Werte: Steht in der Machine-Datei ein Abschnitt `"Locked"`, gelten die
 * `Output:HistoryCount` = IT-Vorgabe: User darf's ändern, der Editor zeigt "IT-Vorgabe".
 * `Output:RootPath` = gesperrt: Feld read-only, Schreiben in die User-Datei unmöglich.
 * Wichtig: Der Editor zeigt die Sperre nur an. Die App muss `Locked` beim Laden selbst als letzte Ebene drüberlegen, sonst kann jemand die User-Datei von Hand ändern.
-* **Listen**: `IConfiguration` führt JSON-Arrays über die Ebenen **nach Index** zusammen (Basis `["a","b","c"]` + User `["x"]` = `["x","b","c"]`). Der Editor bearbeitet Arrays deshalb nicht selbst (Knopf "Im Texteditor öffnen"). Empfehlung an App-Entwickler: Listen, die ein User ganz ersetzen soll, als Komma-getrennten String ablegen und in der App aufteilen. In PraxisRecorder so umgesetzt (`Text:FillerWords`).
+* **Listen**: `IConfiguration` führt JSON-Arrays über die Ebenen **nach Index** zusammen (Basis `["a","b","c"]` + User `["x"]` = `["x","b","c"]`). Der Editor ändert darum nie einzelne Einträge, sondern schreibt beim Umsortieren immer die **ganze wirksame Liste** in die User-Datei (siehe [Listen sortieren](#listen-sortieren)). Inhalte einzelner Einträge bearbeitet er nicht selbst (Knopf "Im Texteditor öffnen"). Empfehlung an App-Entwickler: Listen, die ein User ganz ersetzen soll, als Komma-getrennten String ablegen und in der App aufteilen. In PraxisRecorder so umgesetzt (`Text:FillerWords`).
 
 Pro Feld zeigt der Editor:
 
@@ -84,7 +84,7 @@ Typen:
 | String | string | Textfeld |
 | String, Pfad-artig | path | Textfeld + Durchsuchen + Prüfung |
 | Objekt | Abschnitt | Eintrag in der Navigation links |
-| Array | – | v1 nur Anzeige "N Einträge" + Button "Im Texteditor öffnen" |
+| Array | list | Liste mit einer Zeile pro Eintrag, ▲ ▼ zum Umsortieren, dazu "Im Texteditor öffnen" ([Listen sortieren](#listen-sortieren)) |
 
 Pfad-artig heißt: Key endet auf `Path`, `Dir`, `Directory`, `Folder` oder `File`, **oder** der Wert enthält `\`, `/`, `%VAR%` oder einen Laufwerksbuchstaben (`C:`).
 
@@ -153,7 +153,50 @@ Keys im Format `Abschnitt:Key` wie bei `IConfiguration` (verschachtelt: `A:B:C`)
 | `relativeTo` | `base` = relativ zum Ordner der Basisdatei auflösen |
 | `warnCloudFolder` | warnen, wenn der Pfad in OneDrive/SharePoint liegt |
 
-Reserviert für später (v1 ignoriert sie mit Warnung im Log): `options`, `optionsFromGlob`, `list`, `provider`.
+| `list` | nur bei Arrays: Objekt mit `reorder`, `itemLabel`, `itemDetail` ([Listen sortieren](#listen-sortieren)) |
+
+Reserviert für später (v1 ignoriert sie mit Warnung im Log): `options`, `optionsFromGlob`, `provider`.
+
+### Listen sortieren
+
+Für Prioritätslisten wie die Mikro-Liste von PraxisRecorder: Die Reihenfolge ist die Einstellung, der Inhalt der Einträge wird von der App gepflegt.
+
+```json
+"Audio:PreferredDevices": { "list": { "reorder": true, "itemLabel": "Name", "itemDetail": ["LastSeen"] } }
+```
+
+Anzeige:
+
+* Eine Zeile pro Eintrag, nummeriert (`1.`, `2.` …). Die Nummer ist die Priorität.
+* Zeilentext:
+  * bei Objekten der Wert von `itemLabel`,
+  * ohne `itemLabel` der Wert der **ersten String-Eigenschaft** des Objekts (bei PraxisRecorder `Name`),
+  * bei Strings und Zahlen der Wert selbst,
+  * sonst "Eintrag N".
+* Klein und grau darunter die Werte aus `itemDetail` als `Name: Wert` (z. B. "LastSeen: 2026-11-25 22:34"). Ohne `itemDetail` keine Zusatzzeile. Alle Eigenschaften des Eintrags im Tooltip.
+* Leere Liste: "Keine Einträge", nur der Knopf "Im Texteditor öffnen".
+* Die Suche findet auch Zeilentexte (z. B. "Jabra").
+
+Bedienung:
+
+* Pro Zeile ▲ und ▼. ▲ ist in der ersten, ▼ in der letzten Zeile ausgegraut.
+* Tastatur: Zeile mit ↑ ↓ auswählen, **Alt+↑ / Alt+↓** verschiebt sie. Der Fokus bleibt auf der verschobenen Zeile, auch nach einem Klick auf ▲ ▼. Screenreader: "Jabra EVOLVE LINK, Position 1 von 2", Knöpfe "Jabra EVOLVE LINK nach oben".
+* Jeder Klick speichert sofort (atomar, `.bak`). Ist die Datei gerade gesperrt, gibt es keinen automatischen neuen Versuch: Fehler am Feld, die Liste bleibt, wie sie in der Datei steht, der Klick ist schnell wiederholt.
+* Kein Drag & Drop, kein Hinzufügen oder Löschen in dieser Version. Neue Einträge legt die App an, löschen geht im Texteditor.
+
+Schreiben:
+
+* Der Editor ordnet die **Knoten der wirksamen Liste** um und schreibt die ganze Liste in die User-Datei. Jeder Eintrag bleibt dabei unverändert, auch Eigenschaften, die der Editor nicht kennt (`Id`, `LastSeen` …).
+* Weil die ganze wirksame Liste geschrieben wird, ist die User-Liste nie kürzer als eine Liste darunter. Die Index-Mischung von `IConfiguration` ändert also nichts mehr am Ergebnis.
+* Vor jedem Verschieben liest der Editor die User-Datei neu ein. Die App schreibt die Liste nämlich auch selbst (PraxisRecorder: neues Mikro angesteckt, `LastSeen`). Der Editor sucht den Eintrag in der frischen Liste per Inhalt, nicht per Index: erst genau gleich, sonst eindeutig gleicher Zeilentext (die App hat z. B. `LastSeen` aufgefrischt). Findet er ihn nicht mehr, verschiebt er nichts, lädt die Liste neu und zeigt "Liste wurde inzwischen geändert und neu geladen, bitte nochmal".
+* Herkunft wie bei anderen Feldern: Kommt die Liste aus Base oder Machine und wird umsortiert, wird sie zum "eigenen Wert". Landet die Liste wieder in der Reihenfolge darunter, fliegt der Key aus der User-Datei (Sparse-Write).
+* Kein ↺ Zurücksetzen bei Listen: Bei PraxisRecorder stehen die Mikros nur in der User-Datei, Zurücksetzen würde sie alle löschen.
+* Gesperrt (`Locked`) oder `readonly`: Liste wird gezeigt, ohne ▲ ▼.
+
+Default:
+
+* Ohne Descriptor (Auto-Erkennung) ist jedes Array sortierbar, Zeilentext nach der Regel oben. `"list": { "reorder": false }` schaltet das für eine Liste ab (nur Anzeige).
+* Falscher Typ in `list` (z. B. `"itemLabel": 3`) → `list` wird ignoriert, der Rest des Felds gilt, Hinweis wie bei anderen Descriptor-Fehlern. `list` an einem Feld, das keine Liste ist → Hinweis, ignoriert.
 
 ### Favoriten
 
@@ -349,7 +392,8 @@ AGPL-3.0-or-later (LICENSE im Repo).
 
 Unit-Tests (Core):
 
-* Auto-Erkennung mit der echten `appsettings.json` von PraxisRecorder: alle Abschnitte da, `//`-Kommentare als Beschreibung, `Output:RootPath`, `Models:Directory`, `Models:VocabularyFile` als Pfad, Bools als Schalter, `PreferredDevices` als Array-Anzeige.
+* Auto-Erkennung mit der echten `appsettings.json` von PraxisRecorder: alle Abschnitte da, `//`-Kommentare als Beschreibung, `Output:RootPath`, `Models:Directory`, `Models:VocabularyFile` als Pfad, Bools als Schalter, `PreferredDevices` als sortierbare Liste mit `Name` als Zeilentext.
+* Listen sortieren: Eintrag 2 nach oben → User-Datei enthält die ganze Liste in neuer Reihenfolge, `Id` und `LastSeen` unverändert. Basis-Liste länger als User-Liste → nach dem Verschieben stimmt die wirksame Liste. Datei zwischendurch von der App geändert → kein Verschieben, Hinweis. Gesperrte Liste → keine Pfeile.
 * Layer: Base < Machine < User < Machine:Locked.
 * Sparse-Write: Toggle ändern → User-Datei enthält genau diesen Key. Zurückstellen → Key weg, leerer Abschnitt weg.
 * Vorhandene User-Datei mit `_hinweis`, `_verfuegbar`, `PreferredDevices`, unbekannten Keys → bleiben nach dem Schreiben inhaltlich gleich.
@@ -368,7 +412,7 @@ Manuell:
 * ✅ Eigene Favoriten des Users (Stern am Feld, in `_jsonConfigEditor.favorites` der User-Datei gespeichert).
 * Enum-Dropdown (`options`), z. B. `auto | vulkan | cpu`.
 * Datei-aus-Ordner (`optionsFromGlob`), z. B. Whisper-Modelle aus dem Modellordner.
-* Sortierbare Objekt-Listen (`list`) mit Provider der App, z. B. Mikro-Prioliste.
+* ✅ Listen sortieren mit ▲ ▼ und Alt+↑ ↓ ([Listen sortieren](#listen-sortieren)). Später: Einträge hinzufügen und löschen, Vorschläge per `provider` der App (z. B. alle angesteckten Mikros).
 * IT-Admin-Modus: Machine-Datei schreiben, Werte sperren.
 * Registry/ADMX-Policies (`HKLM\Software\Policies\<App>`).
 * NuGet-Paket für die DLL, winget-Paket für die EXE.

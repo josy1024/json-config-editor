@@ -537,6 +537,13 @@ public sealed class EditorViewModel : ObservableObject, IDisposable
         _reloadTimer.Start();
     }
 
+    /// <summary>Sofort neu laden, z. B. wenn eine Liste beim Verschieben schon anders in der Datei stand.</summary>
+    internal void ReloadNow()
+    {
+        _reloadTimer.Stop();
+        ReloadFromDisk();
+    }
+
     private void ReloadFromDisk()
     {
         if (Document == null) return;

@@ -82,7 +82,45 @@ public sealed class ConfigField
     /// <summary>Eigener Wert, der wirklich vom Default abweicht.</summary>
     public bool IsChanged => HasUser && !(HasDefault && JsonText.ValuesEqual(UserValue, DefaultValue));
 
-    public int ArrayCount => EffectiveValue is JsonArray a ? a.Count : 0;
+    /// <summary>Liste: mit ▲ ▼ umsortierbar (Descriptor list.reorder, Default true).</summary>
+    public bool ListReorder { get; set; } = true;
+    /// <summary>Liste: Eigenschaft für den Zeilentext. Null = erste String-Eigenschaft.</summary>
+    public string? ItemLabel { get; set; }
+    /// <summary>Liste: Eigenschaften, die klein unter dem Zeilentext stehen.</summary>
+    public List<string> ItemDetail { get; set; } = [];
+
+    public bool CanReorder => Kind == FieldKind.Array && ListReorder && !IsLocked && !ReadOnly;
+
+    /// <summary>
+    /// Wirksame Liste wie bei IConfiguration: Ebenen werden nach Index zusammengeführt
+    /// (Basis ["a","b","c"] + User ["x"] = ["x","b","c"]), Objekte darin Eigenschaft für Eigenschaft.
+    /// </summary>
+    public JsonArray? EffectiveList
+    {
+        get
+        {
+            JsonNode? merged = null;
+            if (HasBase) merged = JsonText.MergeLikeConfiguration(merged, BaseValue);
+            if (HasMachine) merged = JsonText.MergeLikeConfiguration(merged, MachineValue);
+            if (HasUser) merged = JsonText.MergeLikeConfiguration(merged, UserValue);
+            if (HasLocked) merged = JsonText.MergeLikeConfiguration(merged, LockedValue);
+            return merged as JsonArray;
+        }
+    }
+
+    /// <summary>Wirksame Liste ohne User-Datei.</summary>
+    internal JsonArray? DefaultList
+    {
+        get
+        {
+            JsonNode? merged = null;
+            if (HasBase) merged = JsonText.MergeLikeConfiguration(merged, BaseValue);
+            if (HasMachine) merged = JsonText.MergeLikeConfiguration(merged, MachineValue);
+            return merged as JsonArray;
+        }
+    }
+
+    public int ArrayCount => EffectiveList?.Count ?? 0;
 
     public bool? BoolValue => EffectiveValue is JsonValue v && v.GetValueKind() is JsonValueKind.True or JsonValueKind.False
         ? v.GetValue<bool>() : null;

@@ -40,6 +40,41 @@ public static class ConfigWriter
         field.UserValue = null;
     }
 
+    /// <summary>
+    /// Eintrag einer Liste verschieben. Geschrieben wird immer die ganze wirksame Liste, jeder Eintrag unverändert.
+    /// Die User-Datei wird vorher frisch gelesen; <paramref name="item"/> ist der Eintrag, wie ihn der User gesehen hat.
+    /// </summary>
+    /// <exception cref="ListChangedException">Die Liste hat sich inzwischen geändert und der Eintrag ist nicht mehr eindeutig zu finden.</exception>
+    public static void MoveItem(ConfigDocument doc, string key, int index, JsonNode? item, int delta)
+    {
+        var field = doc.Find(key) ?? throw new KeyNotFoundException($"Feld {key} gibt's nicht.");
+        EnsureWritable(doc, field, list: true);
+
+        var (root, before) = ReadUser(doc);
+        // frischer User-Stand: die App schreibt die Liste auch selbst (neues Mikro, LastSeen)
+        var hasUser = JsonText.HasPath(root, field.Key);
+        field.HasUser = hasUser;
+        field.UserValue = hasUser ? JsonText.GetPath(root, field.Key)?.DeepClone() : null;
+
+        var list = field.EffectiveList ?? throw new ListChangedException(key);
+        var from = ConfigList.Locate(list, item, field.ItemLabel, index);
+        if (from < 0) throw new ListChangedException(key);
+        var to = from + delta;
+        if (to < 0 || to >= list.Count) return;
+
+        var node = list[from];
+        list.RemoveAt(from);
+        list.Insert(to, node);
+
+        var isDefault = field.DefaultList is { } d && JsonText.ValuesEqual(list, d);
+        if (isDefault) JsonText.RemovePath(root, field.Key);
+        else JsonText.SetPath(root, field.Key, list.DeepClone());
+        Save(doc, root, before);
+
+        field.HasUser = !isDefault;
+        field.UserValue = isDefault ? null : list;
+    }
+
     /// <summary>Schreibt die persönlichen Favoriten als Metadaten in die User-Datei.</summary>
     public static void SetFavorites(ConfigDocument doc, IEnumerable<string> keys)
     {
@@ -128,13 +163,18 @@ public static class ConfigWriter
         return broken;
     }
 
-    private static void EnsureWritable(ConfigDocument doc, ConfigField field)
+    private static void EnsureWritable(ConfigDocument doc, ConfigField field, bool list = false)
     {
         if (doc.WriteBlockedReason != null) throw new InvalidOperationException("Nur Ansicht: " + doc.WriteBlockedReason);
         if (doc.ReadOnly) throw new InvalidOperationException("Editor läuft read-only.");
         if (field.IsLocked) throw new FieldLockedException(field.Key);
         if (field.ReadOnly) throw new InvalidOperationException($"{field.Key} ist read-only.");
-        if (field.Kind is FieldKind.Array or FieldKind.Object)
+        if (list)
+        {
+            if (field.Kind != FieldKind.Array) throw new InvalidOperationException($"{field.Key} ist keine Liste.");
+            if (!field.ListReorder) throw new InvalidOperationException($"{field.Key}: Reihenfolge ist fest (list.reorder = false).");
+        }
+        else if (field.Kind is FieldKind.Array or FieldKind.Object)
             throw new InvalidOperationException($"{field.Key}: Listen und Objekte bitte im Texteditor bearbeiten.");
         if (doc.UserFileError != null)
             throw new ConfigEditorException($"User-Datei ist kaputt, es wird nichts geschrieben: {doc.UserFileError}", ExitCodes.BrokenFile);
@@ -166,6 +206,13 @@ public static class ConfigWriter
         AtomicFile.WriteAllText(path, text);
         Written?.Invoke(path, text);
     }
+}
+
+/// <summary>Liste wurde inzwischen von außen geändert, es wurde nichts verschoben.</summary>
+public sealed class ListChangedException(string key)
+    : InvalidOperationException($"{key}: Liste wurde inzwischen geändert, bitte nochmal.")
+{
+    public string Key { get; } = key;
 }
 
 public sealed class FieldLockedException(string key)

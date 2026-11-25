@@ -121,7 +121,7 @@
                                 <TextBlock Text="{Binding ArraySummary}" VerticalAlignment="Center" Margin="0,0,8,0"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <Button Command="{Binding OpenInEditorCommand}" Padding="10,4"
-                                        ToolTip="Listen bearbeitest du in v1 direkt im JSON (User-Datei)">
+                                        ToolTip="Einträge hinzufügen, löschen oder ändern geht im JSON (User-Datei)">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Style="{StaticResource IconText}" Text="&#xE70F;" Margin="0,0,6,0" FontSize="12" />
                                         <TextBlock Text="Im Texteditor öffnen" />
@@ -129,6 +129,56 @@
                                 </Button>
                             </StackPanel>
                         </StackPanel>
+
+                        <!-- Liste: eine Zeile pro Eintrag, Nummer = Priorität, ▲ ▼ bzw. Alt+↑ ↓ zum Umsortieren -->
+                        <ListBox Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                                 Visibility="{Binding HasListItems, Converter={StaticResource BoolToVis}}"
+                                 ItemsSource="{Binding ListItems}" SelectedIndex="{Binding SelectedListIndex, Mode=TwoWay}"
+                                 AutomationProperties.Name="{Binding Label}"
+                                 PreviewKeyDown="OnListKeyDown" ButtonBase.Click="OnListButtonClick"
+                                 Background="Transparent" BorderThickness="0" Padding="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.CanContentScroll="False" PreviewMouseWheel="OnListMouseWheel">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    <Setter Property="Padding" Value="6,3" />
+                                    <Setter Property="AutomationProperties.Name" Value="{Binding AutomationName}" />
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:ListItemViewModel}">
+                                    <Grid ToolTip="{Binding ToolTip}">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="28" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Number}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Detail}" FontSize="12" TextTrimming="CharacterEllipsis"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                       Visibility="{Binding Detail, Converter={StaticResource NotEmptyToVis}}" />
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Style="{StaticResource IconButton}" Margin="4,0,0,0"
+                                                Command="{Binding UpCommand}" ToolTip="Nach oben (Alt+↑)"
+                                                AutomationProperties.Name="{Binding UpName}" Focusable="False"
+                                                Visibility="{Binding CanReorder, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70E;" FontSize="12" />
+                                        </Button>
+                                        <Button Grid.Column="3" Style="{StaticResource IconButton}" Margin="2,0,0,0"
+                                                Command="{Binding DownCommand}" ToolTip="Nach unten (Alt+↓)"
+                                                AutomationProperties.Name="{Binding DownName}" Focusable="False"
+                                                Visibility="{Binding CanReorder, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="12" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
 
                         <!-- Pfad: breites Feld + Ordner öffnen + Durchsuchen, Rechtsklick = Menü -->
                         <Grid Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0" Visibility="{Binding IsPath, Converter={StaticResource BoolToVis}}"

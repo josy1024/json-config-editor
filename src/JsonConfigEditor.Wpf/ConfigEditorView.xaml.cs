@@ -149,6 +149,39 @@ public partial class ConfigEditorView : UserControl, IDisposable
         e.Handled = true;
     }
 
+    /// <summary>Liste: Alt+↑ / Alt+↓ verschiebt die ausgewählte Zeile, der Fokus bleibt auf ihr.</summary>
+    private void OnListKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not ListBox list) return;
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (Keyboard.Modifiers != ModifierKeys.Alt || key is not (Key.Up or Key.Down)) return;
+        e.Handled = true;
+        var row = list.SelectedItem as ListItemViewModel
+                  ?? (Keyboard.FocusedElement as FrameworkElement)?.DataContext as ListItemViewModel;
+        if (row != null && row.Move(key == Key.Up ? -1 : +1)) FocusSelectedRow(list);
+    }
+
+    /// <summary>▲ ▼ geklickt: Fokus auf die verschobene Zeile, damit es mit der Tastatur weitergeht.</summary>
+    private void OnListButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is ListBox list) FocusSelectedRow(list);
+    }
+
+    /// <summary>Mausrad über der Liste: die Seite scrollt weiter, die Liste schluckt es nicht.</summary>
+    private void OnListMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        e.Handled = true;
+        Scroller.ScrollToVerticalOffset(Scroller.VerticalOffset - e.Delta);
+    }
+
+    private void FocusSelectedRow(ListBox list) =>
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (list.SelectedIndex < 0) return;
+            list.UpdateLayout();
+            (list.ItemContainerGenerator.ContainerFromIndex(list.SelectedIndex) as ListBoxItem)?.Focus();
+        }, System.Windows.Threading.DispatcherPriority.Loaded);
+
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
         // F3 = Debug-Infos, Esc schließt sie
